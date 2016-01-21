@@ -44,6 +44,8 @@ var BOOTSTRAP = this;
 
 const NS_XUL = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
 
+var gNsiTimer = Cc['@mozilla.org/timer;1'].createInstance(Ci.nsITimer);
+
 // Lazy Imports
 const myServices = {};
 XPCOMUtils.defineLazyGetter(myServices, 'hph', function () { return Cc['@mozilla.org/network/protocol;1?name=http'].getService(Ci.nsIHttpProtocolHandler); });
@@ -53,7 +55,14 @@ XPCOMUtils.defineLazyGetter(myServices, 'as', function () { return Cc['@mozilla.
 // START - Addon Functionalities
 
 var AB = { // AB stands for attention bar
-	inst: {}, // holds all instances
+	Insts: {
+		/*
+		##: {
+			state: avail in bootstrap only. the dom does a JSON.parse(JSON.stringify()) on this when updating from it
+			setState: avail only in dom, its the react connection to it
+		}
+		*/
+	}, // holds all instances
 	domIdPrefix: core.addon.id.replace(/[^a-z0-9-_\:\.]/ig,'a'), // The ID and NAME elements must start with a letter i.e. upper case A to Z or lower case a to z; a number is not allowed. After the first letter any number of letters (a to z, A to Z), digits (0 to 9), hyphens (-), underscores (_), colons (:) and periods (.) are allowed. // http://www.electrictoolbox.com/valid-characters-html-id-attribute/
 	click_cbs: {}, // key is nid, and value is a function
 	close_cbs: {}, // key is nid, and value is a function
@@ -79,7 +88,7 @@ var AB = { // AB stands for attention bar
 			aTxt: '', // this is the message body on the toolbar
 			aPos: 0, // 1 for top, on where to append it
 			aIcon: 'chrome://mozapps/skin/places/defaultFavicon.png', // icon on the toolbar
-			aPriority: 1,
+			aPriority: 1, // valid values 1-10
 			aBtns: [] // must be array
 		};
 		
@@ -90,7 +99,6 @@ var AB = { // AB stands for attention bar
 				// bId - this is auto generated and stuck in here, with this.nid
 				bIcon: optional, string to image path
 				bTxt: required, text shown on button
-				bClick: function.,
 				bKey: 'B', // access key
 				bMenu: [
 					{
@@ -107,9 +115,10 @@ var AB = { // AB stands for attention bar
 		
 		if (!('aId' in aInst)) {
 			validateOptionsObj(aInst, cInstDefaults);
-		} else {
 			aInst.aId = this.genId();
-			this.inst.push(cInst);
+			this.Insts[aInst.aId] = {
+				state: aInst
+			};
 		}
 		
 		// give any newly added btns and menu items an id
@@ -127,11 +136,53 @@ var AB = { // AB stands for attention bar
 				}
 			}
 		}
+		
+		// go through all windows, if this id is not in it, then mount it, if its there then setState on it
+		
+		var doit = function(aDOMWindow) {
+			if (!aDOMWindow.gBrowser) {
+				return; // because i am targeting cDeck, windows without gBrowser won't have it
+			}
+			AB.ensureInitedIntoWindow(aDOMWindow);
+			
+			if (aInst.aId in aDOMWindow[core.addon.id].AB.Insts) {
+				aDOMWindow[core.addon.id].AB.Insts[aInst.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInst));
+				aDOMWindow[core.addon.id].AB.Insts[aInst.aId].setState(JSON.parse(JSON.stringify(aInst)));
+			} else {
+				// mount it
+				aDOMWindow[core.addon.id].AB.Insts[aInst.aId] = {};
+				aDOMWindow[core.addon.id].AB.Insts[aInst.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInst));
+				var cDeck = aDOMWindow.document.getElementById('content-deck');
+				var cNotificationBox = aDOMWindow.document.createElementNS(NS_XUL, 'notificationbox');
+				cNotificationBox.setAttribute('id', 'notificationbox-' + aInst.aId + '--' + this.domIdPrefix);
+				if (!aInst.aPos) {
+					cDeck.parentNode.appendChild(cNotificationBox);
+				} else {
+					cDeck.parentNode.insertBefore(cNotificationBox, cDeck); // for top
+				}
+				aDOMWindow[core.addon.id].AB.Insts[aInst.aId].relement = aDOMWindow.React.createElement(aDOMWindow[core.addon.id].AB.masterComponents.Notification, aInst);
+				aDOMWindow.ReactDOM.render(aDOMWindow[core.addon.id].AB.Insts[aInst.aId].relement, cNotificationBox);
+			}
+		};
+		
+		var DOMWindows = Services.wm.getEnumerator(null);
+		while (DOMWindows.hasMoreElements()) {
+			var aDOMWindow = DOMWindows.getNext();
+			if (aDOMWindow.document.readyState == 'complete') { //on startup `aDOMWindow.document.readyState` is `uninitialized`
+				doit(aDOMWindow);
+			} else {
+				aDOMWindow.addEventListener('load', function () {
+					aDOMWindow.removeEventListener('load', arguments.callee, false);
+					doit(aDOMWindow);
+				}, false);
+			}
+		}
 	},
 	genId: function() {
 		this.nid++;
 		return this.nid;
 	},
+	/*
 	getInst: function(aKey, aVal) {
 		for (var i=0; i<this.inst.length; i++) {
 			if (this.inst[i][aKey] && this.inst[i][aKey] == aVal) {
@@ -218,6 +269,7 @@ var AB = { // AB stands for attention bar
 			
 		
 	},
+	*/
 	uninitFromWindow: function(aDOMWindow) {
 		if (!aDOMWindow[core.addon.id]) {
 			return;
@@ -225,35 +277,37 @@ var AB = { // AB stands for attention bar
 		if (!aDOMWindow[core.addon.id].AB) {
 			return;
 		}
+		console.error('doing uninit from window');
 		var winAB = aDOMWindow[core.addon.id].AB;
-		if (winAB.inst && winAB.inst.length) {
-			for (var i=0; i<winAB.inst.length; i++) {
+		if (winAB.Insts && winAB.Insts.length) {
+			for (var aInstId in winAB.Insts) {
 				// unmount this
-				var cNotificationBox = aDOMWindow.document.getElementById(this.domIdPrefix + '-notificationbox-' + instIdsInWindow[i]);
-				aDOMWindow[core.addon.id].AB.ReactDOM.unmountComponentAtNode(cNotificationBox);
+				var cNotificationBox = aDOMWindow.document.getElementById('notificationbox-' + aInstId + '--' + this.domIdPrefix);
+				aDOMWindow.document.ReactDOM.unmountComponentAtNode(cNotificationBox);
 				cNotificationBox.parentNode.removeChild(cNotificationBox);
 			}
 		}
 		delete aDOMWindow[core.addon.id].AB;
 		// :note: i cant delete aDOMWindow[core.addon.id] on unload because i dont know if others are using it
 	},
-	initIntoWindow: function(aDOMWindow) {
+	ensureInitedIntoWindow: function(aDOMWindow) {
 		// dont run this yoruself, ensureInstancesToWindow runs this. so if you want to run yourself, then run ensureInstancesToWindow(aDOMWindow)
 		if (!aDOMWindow[core.addon.id]) {
 			aDOMWindow[core.addon.id] = {}; // :note: i cant delete aDOMWindow[core.addon.id] on unload because i dont know if others are using it
 		}
 		if (!aDOMWindow[core.addon.id].AB) {
 			aDOMWindow[core.addon.id].AB = {
-				inst: []
-			}; // ab stands for attention bar)
+				Insts: {}
+			}; // ab stands for attention bar
 			if (!aDOMWindow.React) {
 				console.error('WILL NOW LOAD IN REACT');
-				Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react.js', aDOMWindow); // even if i load it into aDOMWindow.blah and .blah is an object, it goes into global, so i just do aDOMWindow now
+				Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react.js?' + core.addon.cache_key, aDOMWindow); // even if i load it into aDOMWindow.blah and .blah is an object, it goes into global, so i just do aDOMWindow now
 			}
 			if (!aDOMWindow.ReactDOM) {
 				console.error('WILL NOW LOAD IN REACTDOM');
-				Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react-dom.js', aDOMWindow);
+				Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react-dom.js?' + core.addon.cache_key, aDOMWindow);
 			}
+			Services.scriptloader.loadSubScript(core.addon.path.scripts + 'ab-react-components.js?' + core.addon.cache_key, aDOMWindow);
 		}
 	}
 };
@@ -308,7 +362,7 @@ var windowListener = {
 	loadIntoWindow: function (aDOMWindow) {
 		if (!aDOMWindow) { return }
 		
-		AB.ensureInstancesToWindow(aDOMWindow);
+		// AB.ensureInstancesToWindow(aDOMWindow);
 	},
 	unloadFromWindow: function (aDOMWindow) {
 		if (!aDOMWindow) { return }
@@ -331,14 +385,39 @@ function startup(aData, aReason) {
 	// extendCore();
 	
 	windowListener.register();
-	console.log('started succesfully');
+
+	xpcomSetTimeout(gNsiTimer, 4000, function() {
+		Services.prompt.alert(Services.wm.getMostRecentWindow('navigator:browser'), 'now', 'will now create it');
+		
+		AB.setState({
+			aTxt: 'tweet this',
+			aPriority: 1
+		})
+		
+		xpcomSetTimeout(gNsiTimer, 4000, function() {
+			Services.prompt.alert(Services.wm.getMostRecentWindow('navigator:browser'), 'now', 'will now update it');
+			
+			AB.Insts['0'].state.aBtns = [
+				{
+					bTxt:'hi'
+				},
+				{
+					bTxt:'bye',
+					bIcon:'chrome://mozapps/skin/places/defaultFavicon.png'
+				}
+			];
+			
+			AB.Insts['0'].state.aTxt = 'i present to you two new buttons!';
+			AB.Insts['0'].state.aPriority = 9;
+			
+			AB.setState(AB.Insts['0'].state);
+		});
+	});
 }
 
 function shutdown(aData, aReason) {
 
 	if (aReason == APP_SHUTDOWN) { return }
-
-	AB.unload();
 	
 	windowListener.unregister();
 
@@ -363,17 +442,11 @@ function validateOptionsObj(aOptions, aOptionsDefaults) {
 	}
 }
 
-/**
- * Overwrites obj1's values with obj2's and adds obj2's if non existent in obj1
- * @param obj1
- * @param obj2
- * @returns obj3 a new object based on obj1 and obj2
- */
-function merge_options(obj1,obj2){
-	// http://stackoverflow.com/questions/171251/how-can-i-merge-properties-of-two-javascript-objects-dynamically
-    var obj3 = {};
-    for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
-    for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
-    return obj3;
+function xpcomSetTimeout(aNsiTimer, aDelayTimerMS, aTimerCallback) {
+	aNsiTimer.initWithCallback({
+		notify: function() {
+			aTimerCallback();
+		}
+	}, aDelayTimerMS, Ci.nsITimer.TYPE_ONE_SHOT);
 }
 // end - common helper functions

@@ -1,63 +1,49 @@
+window['react-mozNotificationBar@jetpack'].AB.id = 'react-mozNotificationBar@jetpack';
 window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 	Deck: 'notificationbox', // not a react component, just append this before inserting react component into it
 	Notification: React.createClass({
 		displayName: 'Notification',
 		componentDidMount: function() {
 			console.error('ok mounted'); // for some reason this doesnt trigger
+			window['react-mozNotificationBar@jetpack'].AB.Insts[this.props.aId].setState = this.setState.bind(this);
 		},
 		getInitialState: function() {
 			return {
-				sPriority: 1, // possible values 1-10. 10 being most critical. 1 being lowest.
-				sTxt: this.props.pTxt,
-				sIcon: this.props.pIcon,
-				sBtns: this.props.pBtns
+				// matches cInstDefaults
+				aId: this.props.aId,
+				aTxt: this.props.aTxt,
+				aPos: this.props.aPos,
+				aIcon: this.props.aIcon,
+				aPriority: this.props.aPriority,
+				aBtns: this.props.aBtns,
+				aId: this.props.aId
 			}
 		},
 		render: function() {
 			
 			// incoming props
-			//	pPriority
-			//	pTxt
-			//	pIcon
-			//	pId - used in componentDidMount
-			//	pBtns
-			console.error('in render!!!');
-			if (!this.initedInst) {
-				// window[core.addon.id].AB.inst[this.props.pId].setState = this.setState.bind(this);
-				this.initedInst = true;
-			}
-			var barProps = {
-				pPriority: this.state.sPriority,
+			// do not use props, use state
+
+			var cBarProps = {
+				pPriority: this.state.aPriority,
 				// pType: // this is set below
-				pTxt: this.state.sTxt,
-				pIcon: this.state.sIcon,
+				pTxt: this.state.aTxt,
+				pIcon: this.state.aIcon,
 			};
 			
-			if (this.state.sPriority <= 3) {
-				barProps.pType = 'info';
-			} else if (this.state.sPriority <= 6) {
-				barProps.pType = 'warning';
-			} else if (this.state.sPriority <= 10) {
-				barProps.pType = 'critical';
+			if (this.state.aPriority <= 3) {
+				cBarProps.pType = 'info';
+			} else if (this.state.aPriority <= 6) {
+				cBarProps.pType = 'warning';
+			} else if (this.state.aPriority <= 10) {
+				cBarProps.pType = 'critical';
 			} else {
 				throw new Error('Invalid notification priority');
 			}
 			
-			var barChildren;
-			if (this.state.sBtns) {
-				barChildren = [];
-				for (var i=0; i<this.state.sBtns.length; i++) {
-					var cBtnProps = {
-						key: this.state.sBtns[i].bId,
-						pKey: this.state.sBtns[i].bKey,
-						pTxt: this.state.sBtns[i].bTxt,
-					};
-					barChildren.push(React.createElement(AB.masterComponents.Button, cBtnProps));
-				}
-			}
-			return React.createElement(AB.masterComponents.Bar, barProps,
-				barChildren
-			);
+			cBarProps.pBtns = this.state.aBtns;
+			
+			return React.createElement(window['react-mozNotificationBar@jetpack'].AB.masterComponents.Bar, cBarProps);
 		}
 	}),
 	Bar: React.createClass({
@@ -95,8 +81,26 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 			//	pTxt
 			//	pIcon
 			//	pType
-			var cProps = merge_options(this.props, {});
-			return React.createElement('notification', {label:this.props.pTxt, priority:this.props.pPriority, type:this.props.pType, image:this.props.pIcon});
+			//	pBtns
+			var cChildren;
+			if (this.props.pBtns && this.props.pBtns.length) {
+				cChildren = [];
+				for (var i=0; i<this.props.pBtns.length; i++) {
+					var cButtonProps = {
+						key: this.props.pBtns[i].bId,
+						pId: this.props.pBtns[i].bId,
+						pKey: this.props.pBtns[i].bKey,
+						pTxt: this.props.pBtns[i].bTxt,
+						pMenu: this.props.pBtns[i].bMenu,
+						pIcon: this.props.pBtns[i].bIcon
+					};
+					cChildren.push(React.createElement(window['react-mozNotificationBar@jetpack'].AB.masterComponents.Button, cButtonProps));
+				}
+			}
+			
+			return React.createElement('notification', {label:this.props.pTxt, priority:this.props.pPriority, type:this.props.pType, image:this.props.pIcon},
+				cChildren
+			);
 		}
 	}),
 	Button: React.createClass({
@@ -132,16 +136,20 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 			//	pTxt
 			//	pKey - optional
 			//	pIcon - optional
-			
+			//	pMenu
+			//	pId
+
 			var cAccesskey = this.props.pKey ? this.props.pKey : undefined;
 			var cImage = this.props.pIcon ? this.props.pIcon : undefined;
 			
-			return React.createElement('button', {
+			var cProps = {
 				className: 'notification-button notification-button-default',
 				label: this.props.pTxt,
 				accessKey: cAccesskey,
 				image: cImage
-			});
+			};
+			
+			return React.createElement('button', cProps);
 		}
 	})
 };
