@@ -41,8 +41,8 @@ const OSPath_config = OS.Path.join(OSPath_simpleStorage, 'config.json');
 const myPrefBranch = 'extensions.' + core.addon.id + '.';
 
 var BOOTSTRAP = this;
-var RC = {}; // holds my react components
-var RE = {}; // holds my react elements
+
+const NS_XUL = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
 
 // Lazy Imports
 const myServices = {};
@@ -53,7 +53,7 @@ XPCOMUtils.defineLazyGetter(myServices, 'as', function () { return Cc['@mozilla.
 // START - Addon Functionalities
 
 var AB = { // AB stands for attention bar
-	inst: [], // holds all instances
+	inst: {}, // holds all instances
 	domIdPrefix: core.addon.id.replace(/[^a-z0-9-_\:\.]/ig,'a'), // The ID and NAME elements must start with a letter i.e. upper case A to Z or lower case a to z; a number is not allowed. After the first letter any number of letters (a to z, A to Z), digits (0 to 9), hyphens (-), underscores (_), colons (:) and periods (.) are allowed. // http://www.electrictoolbox.com/valid-characters-html-id-attribute/
 	click_cbs: {}, // key is nid, and value is a function
 	close_cbs: {}, // key is nid, and value is a function
@@ -65,59 +65,68 @@ var AB = { // AB stands for attention bar
 		comp: stands for react component, this gets rendered
 	}
 	*/
-	add: function(aDesc, aTxt, aOptions) {
-		// RETURNS
-			// id of tb made
-		// aDesc stands for description. it would be something like "twitter" or soething
-		// aTxt is a string
-		// aOptions
-		/*
-		{
-			// aScope: 'window' or 'tab' // not yet supported, it is just window level right now
-			aPos: 'top' or 'bottom' - placement of bar. short for position
-			aIcon: string to image path, it is the main icon
-			aBtns: array of objects
-			[
-				{
-					// bId - this is auto generated and stuck in here, with this.nid
-					bIcon: optional, string to image path
-					bTxt: required, text shown on button
-					bClick: function.,
-					bKey: 'B', // access key
-				},
-				{
-					...
-				}
-			]
-		}
-		*/
+	setState: function(aInst) {
+		// this function will add to aInst and all bts in aInst.aBtns a id based on this.genId()
+		// this function also sends setState message to all windows to update this instances
+		// aInst should be strings only, as it is sent to all windows
 		
-		var cOptionsDefaults = {
-			aPos: 'bottom',
-			aIcon: '',
-			aBtns: undefined,
-			aPriority: 1
+		// RETURNS
+			// id of inst pushed
+
+		
+		var cInstDefaults = {
+			// aId: this is auto added in
+			aTxt: '', // this is the message body on the toolbar
+			aPos: 0, // 1 for top, on where to append it
+			aIcon: 'chrome://mozapps/skin/places/defaultFavicon.png', // icon on the toolbar
+			aPriority: 1,
+			aBtns: [] // must be array
 		};
 		
-		var cInst = {};
-		
-		var cBarId = this.genId();
-		
-		if (aOptions.aBtns) {
-			for (var i=0; i<aOptions.aBtns.length; i++) {
-				aOptions.aBtns[i].bId = this.genId();
+		/*
+		aBtns: array of objects
+		[
+			{
+				// bId - this is auto generated and stuck in here, with this.nid
+				bIcon: optional, string to image path
+				bTxt: required, text shown on button
+				bClick: function.,
+				bKey: 'B', // access key
+				bMenu: [
+					{
+						//mId: this is auto genned and added in here,
+						mTxt: 'string'
+					}
+				]
+			},
+			{
+				...
 			}
+		]
+		*/
+		
+		if (!('aId' in aInst)) {
+			validateOptionsObj(aInst, cInstDefaults);
+		} else {
+			aInst.aId = this.genId();
+			this.inst.push(cInst);
 		}
 		
-		cInst.comp = React.createElement(this.masterComponents.Bar, {
-			pId: cBarId,
-			pTxt: aTxt,
-			pPriority: aOptions.aPriority,
-			pIcon: aOptions.aIcon,
-			pBtns: aOptions.aBtns
-		});
-		
-		this.inst.push(cInst);
+		// give any newly added btns and menu items an id
+		if (aInst.aBtns) {
+			for (var i=0; i<aInst.aBtns.length; i++) {
+				if (!('bId' in aInst.aBtns[i])) {
+					aInst.aBtns[i].bId = this.genId();
+				}
+				if (aInst.aBtns[i].bMenu) {
+					for (var j=0; j<aInst.aBtns[i].bMenu.length; j++) {
+						if (!('mId' in aInst.aBtns[i].bMenu[j])) {
+							aInst.aBtns[i].bMenu[j].mId = this.genId();
+						}
+					}
+				}
+			}
+		}
 	},
 	genId: function() {
 		this.nid++;
@@ -164,14 +173,15 @@ var AB = { // AB stands for attention bar
 		// get all ids of instances in bootstrap
 		var instIdsInBootstrap = [];
 		for (var i=0; i<this.inst.length; i++) {
-			instIdsInBootstrap.push(this.inst[i].id);
+			instIdsInBootstrap.push(this.inst[i].aId);
 		}
 		
 		// get all ids of instances in bootstrap
-		var instIdsInWindow = [];
-		for (var i=0; i<winAB.inst.length; i++) {
-			instIdsInWindow.push(winAB.inst[i].id);
-		}
+		// var instIdsInWindow = [];
+		// for (var i=0; i<winAB.inst.length; i++) {
+			// instIdsInWindow.push(winAB.inst[i].aId);
+		// }
+		var instIdsInWindow = Object.keys(winAB.inst); // i commented about the above and did like this due to link779928114
 
 		// check if need to unmount
 		for (var i=0; i<instIdsInWindow.length; i++) {
@@ -180,7 +190,7 @@ var AB = { // AB stands for attention bar
 				// this id is not in bootstrap
 				// unmount this
 				var cNotificationBox = aDOMWindow.document.getElementById(this.domIdPrefix + '-notificationbox-' + instIdsInWindow[i]);
-				aDOMWindow.AB.ReactDOM.unmountComponentAtNode(cNotificationBox);
+				aDOMWindow.ReactDOM.unmountComponentAtNode(cNotificationBox);
 				cNotificationBox.parentNode.removeChild(cNotificationBox);
 			}
 		}
@@ -191,8 +201,18 @@ var AB = { // AB stands for attention bar
 			if (instIdsInWindow.indexOf(instIdsInBootstrap[i]) == -1) {
 				// this id is not in window
 				// mount this
-				var cNotificationBox = aDOMWindow.document.getElementById(this.domIdPrefix + '-notificationbox-' + instIdsInWindow[i]);
-				aDOMWindow.AB.ReactDOM.render(this.inst[i].comp, cNotificationBox); // :note: comp must be value holding React.createElement(AB.masterComponents.Bar, {})
+				var aDOMDocument = aDOMWindow.document;
+				var cDeck = aDOMDocument.getElementById('content-deck');
+				var cNotificationBox = aDOMDocument.createElementNS(NS_XUL, 'notificationbox');
+				cNotificationBox.setAttribute('id', 'notificationbox-' + instIdsInBootstrap[i] + '--' + this.domIdPrefix);
+				if (!this.inst[i].aOptions.aPos) {
+					// by default place at bottom
+					cDeck.parentNode.appendChild(cNotificationBox);
+				} else {
+					cDeck.parentNode.insertBefore(cNotificationBox, cDeck); // for top
+				}
+				aDOMWindow.ReactDOM.render(this.inst[i].comp, cNotificationBox); // :note: comp must be value holding React.createElement(AB.masterComponents.Bar, {});
+				aDOMWindow[core.addon.id].AB.inst[this.inst[i].aId] = {}; // :note: in window, the inst is an array of ids. in bootstrap inst is an array of objects // link779928114
 			}
 		}
 			
@@ -210,7 +230,7 @@ var AB = { // AB stands for attention bar
 			for (var i=0; i<winAB.inst.length; i++) {
 				// unmount this
 				var cNotificationBox = aDOMWindow.document.getElementById(this.domIdPrefix + '-notificationbox-' + instIdsInWindow[i]);
-				aDOMWindow.AB.ReactDOM.unmountComponentAtNode(cNotificationBox);
+				aDOMWindow[core.addon.id].AB.ReactDOM.unmountComponentAtNode(cNotificationBox);
 				cNotificationBox.parentNode.removeChild(cNotificationBox);
 			}
 		}
@@ -222,160 +242,19 @@ var AB = { // AB stands for attention bar
 		if (!aDOMWindow[core.addon.id]) {
 			aDOMWindow[core.addon.id] = {}; // :note: i cant delete aDOMWindow[core.addon.id] on unload because i dont know if others are using it
 		}
-		aDOMWindow[core.addon.id].AB = {
-			inst: []
-		}; // ab stands for attention bar
-		Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react.js', aDOMWindow.AB);
-		Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react-dom.js', aDOMWindow.AB);
-	},
-	initIntoBootstrap: function(aBootstrap) {
-		Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react.js', aBootstrap);
-		Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react-dom.js', aBootstrap);
-		this.initMasterComponents();
-	},
-	masterComponents: {},
-	initMasterComponents: function() {
-		this.masterComponents = {
-			Deck: 'notificationbox', // not a react component, just append this before inserting react component into it
-			Notification: React.createClass({
-				displayName: 'Notification',
-				getInitialState: function() {
-					return {
-						sPriority: 1, // possible values 1-10. 10 being most critical. 1 being lowest.
-						sTxt: this.props.pTxt,
-						sIcon: this.props.pIcon,
-						sBtns: this.props.pBtns
-					}
-				},
-				render: function() {
-					
-					// incoming props
-					//	pPriority
-					//	pTxt
-					//	pIcon
-					//	pId - i dont do anything with this yet
-					//	pBtns
-					
-					var barProps = {
-						pPriority: this.state.sPriority,
-						// pType: // this is set below
-						pTxt: this.state.sTxt,
-						pIcon: this.state.sIcon,
-					};
-					
-					if (this.state.sPriority <= 3) {
-						barProps.pType = 'info';
-					} else if (this.state.sPriority <= 6) {
-						barProps.pType = 'warning';
-					} else if (this.state.sPriority <= 10) {
-						barProps.pType = 'critical';
-					} else {
-						throw new Error('Invalid notification priority');
-					}
-					
-					var barChildren;
-					if (this.state.sBtns) {
-						barChildren = [];
-						for (var i=0; i<this.state.sBtns.length; i++) {
-							var cBtnProps = {
-								key: this.state.sBtns[i].bId,
-								pKey: this.state.sBtns[i].bKey,
-								pTxt: this.state.sBtns[i].bTxt,
-							};
-							barChildren.push(React.createElement(AB.masterComponents.Button, cBtnProps));
-						}
-					}
-					return React.createElement(AB.masterComponents.Bar, barProps,
-						barChildren
-					);
-				}
-			}),
-			Bar: React.createClass({
-				displayName: 'Bar',
-				componentDidMount: function() {
-					this.shouldMirrorProps(this.props, true);
-				},
-				componentWillReceiveProps: function(aNextProps) {
-					this.shouldMirrorProps(aNextProps);
-				},
-				customAttrs: { // works with this.shouldMirrorProps // these are properties that should be made into attributes on the element - key is the string as found in this.props and value is the attr it should be applied as
-					pTxt: 'label',
-					pType: 'type',
-					pIcon: 'image',
-					pPriority: 'priority'
-				},
-				shouldMirrorProps: function(aNextProps, aIsMount) { // works with this.customAttrs
-					var node = ReactDOM.findDOMNode(this);
-					
-					for (var nProp in aNextProps) {
-						if (nProp in this.customAttrs) {
-							if (aIsMount || this.props[nProp] !== aNextProps[nProp]) { // // i do aIsMount check, because on mount, old prop is same as new prop, becase i call in componentDidMount shouldMirrorProps(this.props)
-								console.log(['setting custom attr "' + nProp + '"','old: ' + this.props[nProp], 'new: ' + aNextProps[nProp]].join('\n'));
-								if (aNextProps[nProp] === null || aNextProps[nProp] === undefined) {
-									node.removeAttribute(nProp);
-								} else {
-									node.setAttribute(nProp, aNextProps[nProp]);
-								}
-							}
-						}
-					}
-				},
-				render: function() {
-					// incoming props
-					//	pPriority
-					//	pTxt
-					//	pIcon
-					//	pType
-					return React.createElement('notificationbox', this.props);
-				}
-			}),
-			Button: React.createClass({
-				displayName: 'Button',
-				componentDidMount: function() {
-					this.shouldMirrorProps(this.props, true);
-				},
-				componentWillReceiveProps: function(aNextProps) {
-					this.shouldMirrorProps(aNextProps);
-				},
-				customAttrs: { // works with this.shouldMirrorProps // these are properties that should be made into attributes on the element - key is the string as found in this.props and value is the attr it should be applied as
-					pTxt: 'label',
-					pKey: 'accesskey',
-					pIcon: 'image'
-				},
-				shouldMirrorProps: function(aNextProps, aIsMount) { // works with this.customAttrs
-					var node = ReactDOM.findDOMNode(this);
-					
-					for (var nProp in aNextProps) {
-						if (nProp in this.customAttrs) {
-							if (aIsMount || this.props[nProp] !== aNextProps[nProp]) { // // i do aIsMount check, because on mount, old prop is same as new prop, becase i call in componentDidMount shouldMirrorProps(this.props)
-								console.log(['setting custom attr "' + nProp + '"','old: ' + this.props[nProp], 'new: ' + aNextProps[nProp]].join('\n'));
-								if (aNextProps[nProp] === null || aNextProps[nProp] === undefined) {
-									node.removeAttribute(nProp);
-								} else {
-									node.setAttribute(nProp, aNextProps[nProp]);
-								}
-							}
-						}
-					}
-				},
-				render: function() {
-					// incoming properties
-					//	pTxt
-					//	pKey - optional
-					//	pIcon - optional
-					
-					// var cAccesskey = this.props.pKey ? this.props.pKey : undefined;
-					// var cImage = this.props.pIcon ? this.props.pIcon : undefined;
-					
-					return React.createElement('button', {
-						className: 'notification-button notification-button-default',
-						// label: this.props.pTxt, // set by shouldMirrorPropsAsAttr
-						// accesskey: cAccesskey,
-						// image: cImage
-					});
-				}
-			})
-		};
+		if (!aDOMWindow[core.addon.id].AB) {
+			aDOMWindow[core.addon.id].AB = {
+				inst: []
+			}; // ab stands for attention bar)
+			if (!aDOMWindow.React) {
+				console.error('WILL NOW LOAD IN REACT');
+				Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react.js', aDOMWindow); // even if i load it into aDOMWindow.blah and .blah is an object, it goes into global, so i just do aDOMWindow now
+			}
+			if (!aDOMWindow.ReactDOM) {
+				console.error('WILL NOW LOAD IN REACTDOM');
+				Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react-dom.js', aDOMWindow);
+			}
+		}
 	}
 };
 
@@ -450,8 +329,6 @@ function uninstall(aData, aReason) {
 
 function startup(aData, aReason) {
 	// extendCore();
-
-	AB.initIntoBootstrap(BOOTSTRAP);
 	
 	windowListener.register();
 	console.log('started succesfully');
@@ -469,5 +346,34 @@ function shutdown(aData, aReason) {
 // END - Addon Functionalities
 
 // start - common helper functions
+function validateOptionsObj(aOptions, aOptionsDefaults) {
+	// ensures no invalid keys are found in aOptions, any key found in aOptions not having a key in aOptionsDefaults causes throw new Error as invalid option
+	for (var aOptKey in aOptions) {
+		if (!(aOptKey in aOptionsDefaults)) {
+			console.error('aOptKey of ' + aOptKey + ' is an invalid key, as it has no default value, aOptionsDefaults:', aOptionsDefaults, 'aOptions:', aOptions);
+			throw new Error('aOptKey of ' + aOptKey + ' is an invalid key, as it has no default value');
+		}
+	}
+	
+	// if a key is not found in aOptions, but is found in aOptionsDefaults, it sets the key in aOptions to the default value
+	for (var aOptKey in aOptionsDefaults) {
+		if (!(aOptKey in aOptions)) {
+			aOptions[aOptKey] = aOptionsDefaults[aOptKey];
+		}
+	}
+}
 
+/**
+ * Overwrites obj1's values with obj2's and adds obj2's if non existent in obj1
+ * @param obj1
+ * @param obj2
+ * @returns obj3 a new object based on obj1 and obj2
+ */
+function merge_options(obj1,obj2){
+	// http://stackoverflow.com/questions/171251/how-can-i-merge-properties-of-two-javascript-objects-dynamically
+    var obj3 = {};
+    for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+    for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+    return obj3;
+}
 // end - common helper functions
