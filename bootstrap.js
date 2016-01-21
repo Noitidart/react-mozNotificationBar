@@ -154,7 +154,8 @@ var AB = { // AB stands for attention bar
 				aDOMWindow[core.addon.id].AB.Insts[aInst.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInst));
 				var cDeck = aDOMWindow.document.getElementById('content-deck');
 				var cNotificationBox = aDOMWindow.document.createElementNS(NS_XUL, 'notificationbox');
-				cNotificationBox.setAttribute('id', 'notificationbox-' + aInst.aId + '--' + this.domIdPrefix);
+				console.error('inserting', 'notificationbox-' + aInst.aId + '--' + AB.domIdPrefix);
+				cNotificationBox.setAttribute('id', 'notificationbox-' + aInst.aId + '--' + AB.domIdPrefix);
 				if (!aInst.aPos) {
 					cDeck.parentNode.appendChild(cNotificationBox);
 				} else {
@@ -279,15 +280,15 @@ var AB = { // AB stands for attention bar
 		}
 		console.error('doing uninit from window');
 		var winAB = aDOMWindow[core.addon.id].AB;
-		if (winAB.Insts && winAB.Insts.length) {
-			for (var aInstId in winAB.Insts) {
-				// unmount this
-				var cNotificationBox = aDOMWindow.document.getElementById('notificationbox-' + aInstId + '--' + this.domIdPrefix);
-				aDOMWindow.document.ReactDOM.unmountComponentAtNode(cNotificationBox);
-				cNotificationBox.parentNode.removeChild(cNotificationBox);
-			}
+		for (var aInstsId in winAB.Insts) {
+			// unmount this
+			console.error('aInstsId:', aInstsId, 'notificationbox-' + aInstsId + '--' + this.domIdPrefix);
+			var cNotificationBox = aDOMWindow.document.getElementById('notificationbox-' + aInstsId + '--' + this.domIdPrefix);
+			aDOMWindow.ReactDOM.unmountComponentAtNode(cNotificationBox);
+			cNotificationBox.parentNode.removeChild(cNotificationBox);
 		}
 		delete aDOMWindow[core.addon.id].AB;
+		console.error('done uninit');
 		// :note: i cant delete aDOMWindow[core.addon.id] on unload because i dont know if others are using it
 	},
 	ensureInitedIntoWindow: function(aDOMWindow) {

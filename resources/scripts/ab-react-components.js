@@ -59,17 +59,17 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 			pPriority: 'priority'
 		},
 		shouldMirrorProps: function(aNextProps, aIsMount) { // works with this.customAttrs
-			return; // becuased modded HTMLDOMPropertyConfig.Properties
 			var node = ReactDOM.findDOMNode(this);
+			console.log('node:', node);
 			
 			for (var nProp in aNextProps) {
 				if (nProp in this.customAttrs) {
 					if (aIsMount || this.props[nProp] !== aNextProps[nProp]) { // // i do aIsMount check, because on mount, old prop is same as new prop, becase i call in componentDidMount shouldMirrorProps(this.props)
 						console.log(['setting custom attr "' + nProp + '"','old: ' + this.props[nProp], 'new: ' + aNextProps[nProp]].join('\n'));
 						if (aNextProps[nProp] === null || aNextProps[nProp] === undefined) {
-							node.removeAttribute(nProp);
+							node.removeAttribute(this.customAttrs[nProp]);
 						} else {
-							node.setAttribute(nProp, aNextProps[nProp]);
+							node.setAttribute(this.customAttrs[nProp], aNextProps[nProp]);
 						}
 					}
 				}
@@ -115,17 +115,16 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 			pIcon: 'image'
 		},
 		shouldMirrorProps: function(aNextProps, aIsMount) { // works with this.customAttrs
-			return; // becuased modded HTMLDOMPropertyConfig.Properties
 			var node = ReactDOM.findDOMNode(this);
-
+			console.log('node:', node);
 			for (var nProp in aNextProps) {
 				if (nProp in this.customAttrs) {
 					if (aIsMount || this.props[nProp] !== aNextProps[nProp]) { // // i do aIsMount check, because on mount, old prop is same as new prop, becase i call in componentDidMount shouldMirrorProps(this.props)
 						console.log(['setting custom attr "' + nProp + '"','old: ' + this.props[nProp], 'new: ' + aNextProps[nProp]].join('\n'));
 						if (aNextProps[nProp] === null || aNextProps[nProp] === undefined) {
-							node.removeAttribute(nProp);
+							node.removeAttribute(this.customAttrs[nProp]);
 						} else {
-							node.setAttribute(nProp, aNextProps[nProp]);
+							node.setAttribute(this.customAttrs[nProp], aNextProps[nProp]);
 						}
 					}
 				}

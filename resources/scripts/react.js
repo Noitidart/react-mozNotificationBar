@@ -3256,7 +3256,6 @@ var HTMLDOMPropertyConfig = {
     httpEquiv: null,
     icon: null,
     id: MUST_USE_PROPERTY,
-	image: null, // AttnBar addin
     inputMode: MUST_USE_ATTRIBUTE,
     integrity: null,
     is: MUST_USE_ATTRIBUTE,
@@ -3289,7 +3288,6 @@ var HTMLDOMPropertyConfig = {
     placeholder: null,
     poster: null,
     preload: null,
-	priority: null, // AttnBar addin
     radioGroup: null,
     readOnly: MUST_USE_PROPERTY | HAS_BOOLEAN_VALUE,
     rel: null,
