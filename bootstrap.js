@@ -420,12 +420,14 @@ function startup(aData, aReason) {
 				AB.Insts['0'].state.aBtns[1].bMenu = [
 					{
 						cTxt:'item 1',
+						cClass: 'menuitem-non-iconic',
 						cMenu: [
 							{
 								cTxt: 'item1.1'
 							},
 							{
 								cTxt: 'item1.2',
+								cIcon:'chrome://mozapps/skin/places/defaultFavicon.png',
 								cMenu: [
 									{
 										cTxt: 'item1.2.1',

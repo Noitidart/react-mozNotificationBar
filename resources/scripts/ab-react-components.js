@@ -204,14 +204,29 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 		},
 		render: function() {
 			// incoming props
-			//	anything in a pMenu array like cMenu, cTxt, etc
+			//	anything in a pMenu array. currently only cImage, cMenu, cIcon, cClass do anything (cClass because you may want to menuitem-non-iconic) per https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/menuitem#Style_classes
 			
+			var cProps = {
+				label: this.props.cTxt,
+				className: this.props.cClass ? this.props.cClass : undefined
+			};
+
 			if (this.props.cMenu) {
-				return React.createElement('menu', {label:this.props.cTxt},
+				// https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/menu#Style_classes
+				if (this.props.cIcon) {
+					cProps.className = (cProps.className ? cProps.className + ' ' : '') + 'menu-iconic';
+				}
+				
+				return React.createElement('menu', cProps,
 					React.createElement(window['react-mozNotificationBar@jetpack'].AB.masterComponents.Menu, {pMenu:this.props.cMenu})
 				);
 			} else {
-				return React.createElement('menuitem', {label:this.props.cTxt});
+				// per mdn docs https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/menuitem#a-image if you want icon to show you have to set this class
+				if (this.props.cIcon) {
+					cProps.className = (cProps.className ? cProps.className + ' ' : '') + 'menuitem-iconic';
+				}
+				
+				return React.createElement('menuitem', cProps);
 			}
 		}
 	})
