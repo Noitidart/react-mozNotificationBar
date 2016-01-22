@@ -61,6 +61,7 @@ var AB = { // AB stands for attention bar
 		##: {
 			state: avail in bootstrap only. the dom does a JSON.parse(JSON.stringify()) on this when updating from it
 			setState: avail only in dom, its the react connection to it
+			callbackids: {}, only in bootstrap, used for help cleaning up on destroy. key is id of callback, value is meaningless
 		}
 		*/
 	}, // holds all instances
@@ -82,6 +83,50 @@ var AB = { // AB stands for attention bar
 		comp: stands for react component, this gets rendered
 	}
 	*/
+	setStateDestroy: function(aInstId) {
+		// destroys, and cleans up, this does not worry about callbacks. the nonDevUserSpecifiedCloseCb actually calls this
+		
+		// unmount from all windows dom && delete from all windows js
+		var doit = function(aDOMWindow) {
+			// start - copy block link77728110
+			if (!aDOMWindow.gBrowser) {
+				return; // because i am targeting cDeck, windows without gBrowser won't have it
+			}
+			var winAB = aDOMWindow[core.addon.id + '-AB'];
+			if (winAB) {
+				if (aInstId in winAB.Insts) {
+					// unmount this
+					console.error('aInstId:', aInstId, 'notificationbox-' + aInstId + '--' + AB.domIdPrefix);
+					var cNotificationBox = aDOMWindow.document.getElementById('notificationbox-' + aInstId + '--' + AB.domIdPrefix);
+					aDOMWindow.ReactDOM.unmountComponentAtNode(cNotificationBox);
+					cNotificationBox.parentNode.removeChild(cNotificationBox);
+					delete winAB.Insts[aInstId];
+				}
+			}
+			// end - copy block link77728110
+		};
+		
+		var DOMWindows = Services.wm.getEnumerator(null);
+		while (DOMWindows.hasMoreElements()) {
+			var aDOMWindow = DOMWindows.getNext();
+			if (aDOMWindow.document.readyState == 'complete') { //on startup `aDOMWindow.document.readyState` is `uninitialized`
+				doit(aDOMWindow);
+			}//  else { // not complete means its impossible it has this aInstId mounted in here
+				// // aDOMWindow.addEventListener('load', function () {
+				// // 	aDOMWindow.removeEventListener('load', arguments.callee, false);
+				// // 	doit(aDOMWindow);
+				// // }, false);
+			//}
+		}
+		
+		// delete callbacks
+		for (var aCallbackId in AB.Insts[aInstId].callbackids) {
+			delete AB.Callbacks[aCallbackId];
+		}
+		
+		// delete from bootstrap js
+		delete AB.Insts[aInstId];
+	},
 	setState: function(aInstState) { // :note: aInstState is really aInstStateState
 		// this function will add to aInstState and all bts in aInstState.aBtns a id based on this.genId()
 		// this function also sends setState message to all windows to update this instances
@@ -126,19 +171,21 @@ var AB = { // AB stands for attention bar
 		
 		if (!('aId' in aInstState)) {
 			validateOptionsObj(aInstState, cInstDefaults);
-			aInstState.aId = this.genId();
-			this.Insts[aInstState.aId] = {
-				state: aInstState
+			aInstState.aId = AB.genId();
+			AB.Insts[aInstState.aId] = {
+				state: aInstState,
+				callbackids: {}
 			};
-			this.Callbacks[aInstState.aId] = function(aBrowser) {
+			AB.Callbacks[aInstState.aId] = function(aBrowser) {
 				AB.nonDevUserSpecifiedCloseCb(aInstState.aId, aBrowser); // this one doesnt need bind, only devuser callbacks are bound
 			};
+			AB.Insts[aInstState.aId].callbackids[aInstState.aId] = 1; // the close callback id
 		}
 		if (aInstState.aClose) {
 			var aClose = aInstState.aClose.bind({inststate:aInstState});
 			delete aInstState.aClose;
 			
-			this.Callbacks[aInstState.aId] = function(aBrowser) {
+			AB.Callbacks[aInstState.aId] = function(aBrowser) {
 				var rez_aClose = aClose(aBrowser);
 				if (rez_aClose !== false) { // :note: if onClose returns false, it cancels the closing
 					AB.nonDevUserSpecifiedCloseCb(aInstState.aId, aBrowser); // this one doesnt need bind, only devuser callbacks are bound
@@ -151,10 +198,11 @@ var AB = { // AB stands for attention bar
 		if (aInstState.aBtns) {
 			for (var i=0; i<aInstState.aBtns.length; i++) {
 				if (!('bId' in aInstState.aBtns[i])) {
-					aInstState.aBtns[i].bId = this.genId();
+					aInstState.aBtns[i].bId = AB.genId();
 				}
 				if (aInstState.aBtns[i].bClick) { // i dont do this only if bId is not there, because devuser can change it up. i detect change by presenence of the bClick, because after i move it out of state obj and into callbacks obj, i delete it from state obj. so its not here unless changed
-					AB.Callbacks[aInstState.aBtns[i].bId] = aInstState.aBtns[i].bClick.bind({inststate:aInstState, btn:aInstState.aBtns[i]});
+					AB.Insts[aInstState.aId].callbackids[aInstState.aBtns[i].bId] = 1; // its ok if it was already there, its the same one ill be removing
+					AB.Callbacks[aInstState.aBtns[i].bId] = aInstState.aBtns[i].bClick.bind({inststate:aInstState, btn:aInstState.aBtns[i]}, AB.Callbacks[aInstState.aId]);
 					delete aInstState.aBtns[i].bClick; // AB.Callbacks[aInstState.aId] is the doClose callback devuser should call if they want it to close out
 				}
 				if (aInstState.aBtns[i].bMenu) {
@@ -212,12 +260,14 @@ var AB = { // AB stands for attention bar
 		
 		aBrowser.contentWindow.alert('ok this tab sent the close message for aInstId ' + aInstId);
 		// on close go through and get all id's in there and remove all callbacks for it. and then unmount from all windows.
+		AB.setStateDestroy(aInstId, true);
 	},
 	genId: function() {
-		this.nid++;
-		return this.nid;
+		AB.nid++;
+		return AB.nid;
 	},
 	iterMenuForIdAndCbs: function(jMenu, aCloseCallbackId, aBtnEntry) {
+		// aCloseCallbackId is same as aInstId
 		// aBtnArrEntry is reference as its the btn object in the .aBtns arr
 		// goes through and gives every menuitem and submenu item (anything that has cTxt) an id, as they are clickable
 		// ALSO moves cClick callbacks into AB.Callbacks
@@ -229,7 +279,8 @@ var AB = { // AB stands for attention bar
 				}
 			}
 			if (jEntry.cClick) { // i dont do this only if bId is not there, because devuser can change it up. i detect change by presenence of the bClick, because after i move it out of state obj and into callbacks obj, i delete it from state obj. so its not here unless changed
-				AB.Callbacks[jEntry.cId] = jEntry.cClick.bind({inststate:AB.Insts[aCloseCallbackId].state, btn:aBtnEntry, menu:jMenu, menuitem:jEntry});
+				AB.Insts[aCloseCallbackId].callbackids[jEntry.cId] = 1; // its ok if it was already there, its the same one ill be removing
+				AB.Callbacks[jEntry.cId] = jEntry.cClick.bind({inststate:AB.Insts[aCloseCallbackId].state, btn:aBtnEntry, menu:jMenu, menuitem:jEntry}, AB.Callbacks[aCloseCallbackId]);
 				delete jEntry.cClick; // AB.Callbacks[aInst.aId] is the doClose callback devuser should call if they want it to close out
 			}
 		});
@@ -239,14 +290,16 @@ var AB = { // AB stands for attention bar
 			return;
 		}
 		console.error('doing uninit from window');
+		// start - original block link77728110
 		var winAB = aDOMWindow[core.addon.id + '-AB'];
 		for (var aInstsId in winAB.Insts) {
 			// unmount this
-			console.error('aInstsId:', aInstsId, 'notificationbox-' + aInstsId + '--' + this.domIdPrefix);
-			var cNotificationBox = aDOMWindow.document.getElementById('notificationbox-' + aInstsId + '--' + this.domIdPrefix);
+			console.error('aInstsId:', aInstsId, 'notificationbox-' + aInstsId + '--' + AB.domIdPrefix);
+			var cNotificationBox = aDOMWindow.document.getElementById('notificationbox-' + aInstsId + '--' + AB.domIdPrefix);
 			aDOMWindow.ReactDOM.unmountComponentAtNode(cNotificationBox);
 			cNotificationBox.parentNode.removeChild(cNotificationBox);
 		}
+		// end - original block link77728110
 		delete aDOMWindow[core.addon.id + '-AB'];
 		console.error('done uninit');
 	},
@@ -269,7 +322,7 @@ var AB = { // AB stands for attention bar
 		}
 	},
 	init: function() {
-		Services.mm.addMessageListener(core.addon.id + '-AB', this.msgListener);
+		Services.mm.addMessageListener(core.addon.id + '-AB', AB.msgListener);
 		
 		Services.wm.addListener(AB.winListener);
 		
@@ -278,7 +331,7 @@ var AB = { // AB stands for attention bar
 		// and its impossible that Insts exists before Init, so no need to iterate through all windows.
 	},
 	uninit: function() {
-		Services.mm.removeMessageListener(core.addon.id + '-AB', this.msgListener);
+		Services.mm.removeMessageListener(core.addon.id + '-AB', AB.msgListener);
 		
 		Services.wm.removeListener(AB.winListener);
 		
@@ -392,11 +445,13 @@ function testCase() {
 			AB.Insts['0'].state.aBtns = [
 				{
 					bTxt:'hi',
-					bClick: function(aBrowser) {
+					bClick: function(doClose, aBrowser) {
 						this.btn.bTxt += '1';
 						aBrowser.contentWindow.alert('hiiiii');
 						AB.setState(this.inststate);
 						console.info('this:', this);
+						console.info('doClose:', doClose);
+						doClose(aBrowser);
 					}
 				},
 				{
@@ -420,9 +475,11 @@ function testCase() {
 						cMenu: [
 							{
 								cTxt: 'item1.1',
-								cClick: function(aBrowser) {
+								cClick: function(doClose, aBrowser) {
 									aBrowser.contentWindow.alert('clicked menuitem 1.1');
 									console.info('this:', this);
+									console.info('doClose:', doClose);
+									doClose(aBrowser);
 								}
 							},
 							{
