@@ -42,6 +42,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 			}
 			
 			cBarProps.pBtns = this.state.aBtns;
+			cBarProps.pId = this.state.aId;
 			
 			return React.createElement(window['react-mozNotificationBar@jetpack'].AB.masterComponents.Bar, cBarProps);
 		}
@@ -82,6 +83,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 			//	pIcon
 			//	pType
 			//	pBtns
+			//	pId - this is just how normally the notification bar happens, it sets the value to this
 			var cChildren;
 			if (this.props.pBtns && this.props.pBtns.length) {
 				cChildren = [];
@@ -98,7 +100,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				}
 			}
 			
-			return React.createElement('notification', {label:this.props.pTxt, priority:this.props.pPriority, type:this.props.pType, image:this.props.pIcon},
+			return React.createElement('notification', {label:this.props.pTxt, priority:this.props.pPriority, type:this.props.pType, image:this.props.pIcon, value:'notificationbox-' + this.props.pId + '--' + window['react-mozNotificationBar@jetpack'].AB.domIdPrefix},
 				cChildren
 			);
 		}
@@ -147,8 +149,70 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				accessKey: cAccesskey,
 				image: cImage
 			};
+			var cChildren;			
+			if (this.props.pMenu && this.props.pMenu.length) {
+				cProps.type = 'menu';
+				var cChildren = React.createElement(window['react-mozNotificationBar@jetpack'].AB.masterComponents.Menu, {pMenu:this.props.pMenu});
+			}
+			return React.createElement('button', cProps,
+				cChildren
+			);
+		}
+	}),
+	Menu: React.createClass({
+		displayName: 'Menu',
+		render: function() {
+			// incoming props
+			//	pMenu - a array of menu items
 			
-			return React.createElement('button', cProps);
+			var cChildren = [];
+			for (var i=0; i<this.props.pMenu.length; i++) {
+				cChildren.push(React.createElement(window['react-mozNotificationBar@jetpack'].AB.masterComponents.MenuItem, this.props.pMenu[i]));
+			}
+			
+			return React.createElement('menupopup', {},
+				cChildren
+			);
+		}
+	}),
+	MenuItem: React.createClass({
+		displayName: 'MenuItem',
+		componentDidMount: function() {
+			this.shouldMirrorProps(this.props, true);
+		},
+		componentWillReceiveProps: function(aNextProps) {
+			this.shouldMirrorProps(aNextProps);
+		},
+		customAttrs: { // works with this.shouldMirrorProps // these are properties that should be made into attributes on the element - key is the string as found in this.props and value is the attr it should be applied as
+			cIcon: 'image'
+		},
+		shouldMirrorProps: function(aNextProps, aIsMount) { // works with this.customAttrs
+			var node = ReactDOM.findDOMNode(this);
+			console.log('node:', node);
+			for (var nProp in aNextProps) {
+				if (nProp in this.customAttrs) {
+					if (aIsMount || this.props[nProp] !== aNextProps[nProp]) { // // i do aIsMount check, because on mount, old prop is same as new prop, becase i call in componentDidMount shouldMirrorProps(this.props)
+						console.log(['setting custom attr "' + nProp + '"','old: ' + this.props[nProp], 'new: ' + aNextProps[nProp]].join('\n'));
+						if (aNextProps[nProp] === null || aNextProps[nProp] === undefined) {
+							node.removeAttribute(this.customAttrs[nProp]);
+						} else {
+							node.setAttribute(this.customAttrs[nProp], aNextProps[nProp]);
+						}
+					}
+				}
+			}
+		},
+		render: function() {
+			// incoming props
+			//	anything in a pMenu array like cMenu, cTxt, etc
+			
+			if (this.props.cMenu) {
+				return React.createElement('menu', {label:this.props.cTxt},
+					React.createElement(window['react-mozNotificationBar@jetpack'].AB.masterComponents.Menu, {pMenu:this.props.cMenu})
+				);
+			} else {
+				return React.createElement('menuitem', {label:this.props.cTxt});
+			}
 		}
 	})
 };

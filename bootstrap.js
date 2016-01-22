@@ -298,7 +298,8 @@ var AB = { // AB stands for attention bar
 		}
 		if (!aDOMWindow[core.addon.id].AB) {
 			aDOMWindow[core.addon.id].AB = {
-				Insts: {}
+				Insts: {},
+				domIdPrefix: AB.domIdPrefix
 			}; // ab stands for attention bar
 			if (!aDOMWindow.React) {
 				console.error('WILL NOW LOAD IN REACT');
@@ -393,7 +394,7 @@ function startup(aData, aReason) {
 		AB.setState({
 			aTxt: 'tweet this',
 			aPriority: 1
-		})
+		});
 		
 		xpcomSetTimeout(gNsiTimer, 4000, function() {
 			Services.prompt.alert(Services.wm.getMostRecentWindow('navigator:browser'), 'now', 'will now update it');
@@ -412,6 +413,48 @@ function startup(aData, aReason) {
 			AB.Insts['0'].state.aPriority = 9;
 			
 			AB.setState(AB.Insts['0'].state);
+			
+			xpcomSetTimeout(gNsiTimer, 4000, function() {
+				Services.prompt.alert(Services.wm.getMostRecentWindow('navigator:browser'), 'now', 'will now update it');
+				
+				AB.Insts['0'].state.aBtns[1].bMenu = [
+					{
+						cTxt:'item 1',
+						cMenu: [
+							{
+								cTxt: 'item1.1'
+							},
+							{
+								cTxt: 'item1.2',
+								cMenu: [
+									{
+										cTxt: 'item1.2.1',
+										cIcon:'chrome://mozapps/skin/places/defaultFavicon.png'
+									}
+								]
+							}
+						]
+					},
+					{
+						cTxt:'item2',
+						cIcon:'chrome://mozapps/skin/places/defaultFavicon.png'
+					}
+				];
+				/* 
+				AB.Insts['0'].state.aBtns[1].bMenu = [
+					{
+						cTxt:'item 1'
+					},					{
+						cTxt:'item 2'
+					}
+				];
+				 */
+				AB.Insts['0'].state.aTxt = 'given menu to button 2!';
+				AB.Insts['0'].state.aPriority = 5;
+				
+				AB.setState(AB.Insts['0'].state);
+			});
+			
 		});
 	});
 }
