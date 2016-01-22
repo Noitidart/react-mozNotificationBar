@@ -79,7 +79,7 @@ var AB = { // AB stands for attention bar
 		comp: stands for react component, this gets rendered
 	}
 	*/
-	setState: function(aInst) {
+	setState: function(aInst) { // :note: aInst is really aInstState
 		// this function will add to aInst and all bts in aInst.aBtns a id based on this.genId()
 		// this function also sends setState message to all windows to update this instances
 		// aInst should be strings only, as it is sent to all windows
@@ -132,7 +132,7 @@ var AB = { // AB stands for attention bar
 			};
 		}
 		if (aInst.aClose) {
-			var aClose = aInst.aClose.bind(aInst);
+			var aClose = aInst.aClose.bind({inststate:aInst});
 			delete aInst.aClose;
 			
 			this.Callbacks[aInst.aId] = function(aBrowser) {
@@ -151,7 +151,7 @@ var AB = { // AB stands for attention bar
 					aInst.aBtns[i].bId = this.genId();
 				}
 				if (aInst.aBtns[i].bClick) { // i dont do this only if bId is not there, because devuser can change it up. i detect change by presenence of the bClick, because after i move it out of state obj and into callbacks obj, i delete it from state obj. so its not here unless changed
-					AB.Callbacks[aInst.aBtns[i].bId] = aInst.aBtns[i].bClick.bind(aInst.aBtns[i]);
+					AB.Callbacks[aInst.aBtns[i].bId] = aInst.aBtns[i].bClick.bind({inststate:aInst, btn:aInst.aBtns[i]});
 					delete aInst.aBtns[i].bClick; // AB.Callbacks[aInst.aId] is the doClose callback devuser should call if they want it to close out
 				}
 				if (aInst.aBtns[i].bMenu) {
@@ -224,7 +224,7 @@ var AB = { // AB stands for attention bar
 				}
 			}
 			if (jEntry.cClick) { // i dont do this only if bId is not there, because devuser can change it up. i detect change by presenence of the bClick, because after i move it out of state obj and into callbacks obj, i delete it from state obj. so its not here unless changed
-				AB.Callbacks[jEntry.cId] = jEntry.cClick.bind(aBtnEntry);
+				AB.Callbacks[jEntry.cId] = jEntry.cClick.bind({inststate:AB.Insts[aCloseCallbackId].state, btn:aBtnEntry, menu:jMenu, menuitem:jEntry});
 				delete jEntry.cClick; // AB.Callbacks[aInst.aId] is the doClose callback devuser should call if they want it to close out
 			}
 		});
@@ -467,7 +467,13 @@ function startup(aData, aReason) {
 			
 			AB.Insts['0'].state.aBtns = [
 				{
-					bTxt:'hi'
+					bTxt:'hi',
+					bClick: function(aBrowser) {
+						this.btn.bTxt += '1';
+						aBrowser.contentWindow.alert('hiiiii');
+						AB.setState(this.inststate);
+						console.info('this:', this);
+					}
 				},
 				{
 					bTxt:'bye',
@@ -489,7 +495,11 @@ function startup(aData, aReason) {
 						cClass: 'menuitem-non-iconic',
 						cMenu: [
 							{
-								cTxt: 'item1.1'
+								cTxt: 'item1.1',
+								cClick: function(aBrowser) {
+									aBrowser.contentWindow.alert('clicked menuitem 1.1');
+									console.info('this:', this);
+								}
 							},
 							{
 								cTxt: 'item1.2',
