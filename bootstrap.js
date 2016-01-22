@@ -55,6 +55,7 @@ XPCOMUtils.defineLazyGetter(myServices, 'as', function () { return Cc['@mozilla.
 // START - Addon Functionalities
 
 var AB = { // AB stands for attention bar
+	// based on https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/notificationbox#Methods && https://dxr.mozilla.org/mozilla-central/source/toolkit/content/widgets/notification.xml#79
 	Insts: {
 		/*
 		##: {
@@ -64,8 +65,7 @@ var AB = { // AB stands for attention bar
 		*/
 	}, // holds all instances
 	domIdPrefix: core.addon.id.replace(/[^a-z0-9-_\:\.]/ig,'a'), // The ID and NAME elements must start with a letter i.e. upper case A to Z or lower case a to z; a number is not allowed. After the first letter any number of letters (a to z, A to Z), digits (0 to 9), hyphens (-), underscores (_), colons (:) and periods (.) are allowed. // http://www.electrictoolbox.com/valid-characters-html-id-attribute/
-	click_cbs: {}, // key is nid, and value is a function
-	close_cbs: {}, // key is nid, and value is a function
+	Callbacks: {}, // key is nid, if nid is of a notification then the callback is a close callback, else it is of a click callback. if callback is for click it gets a param passed to it, the param is doClose, and if you want to close it out, do `doClose()`
 	nid: -1, // stands for next_id, used for main toolbar, and also for each button, and also each menu item
 	/*
 	{
@@ -89,7 +89,8 @@ var AB = { // AB stands for attention bar
 			aPos: 0, // 1 for top, on where to append it
 			aIcon: 'chrome://mozapps/skin/places/defaultFavicon.png', // icon on the toolbar
 			aPriority: 1, // valid values 1-10
-			aBtns: [] // must be array
+			aBtns: [], // must be array
+			aHideClose: undefined // if set to string 'true' or bool true, in dom it will get converted to string as 'true'. setting to 1 int will not work.
 		};
 		
 		/*

@@ -6,6 +6,8 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 		componentDidMount: function() {
 			console.error('ok mounted'); // for some reason this doesnt trigger
 			window['react-mozNotificationBar@jetpack'].AB.Insts[this.props.aId].setState = this.setState.bind(this);
+			var node = ReactDOM.findDOMNode(this);
+			window['react-mozNotificationBar@jetpack'].AB.Node = node;
 		},
 		getInitialState: function() {
 			return {
@@ -16,7 +18,8 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				aIcon: this.props.aIcon,
 				aPriority: this.props.aPriority,
 				aBtns: this.props.aBtns,
-				aId: this.props.aId
+				aId: this.props.aId,
+				aHideClose: this.props.aHideClose
 			}
 		},
 		render: function() {
@@ -43,6 +46,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 			
 			cBarProps.pBtns = this.state.aBtns;
 			cBarProps.pId = this.state.aId;
+			cBarProps.pHideClose = this.state.aHideClose;
 			
 			return React.createElement(window['react-mozNotificationBar@jetpack'].AB.masterComponents.Bar, cBarProps);
 		}
@@ -57,7 +61,8 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 		},
 		customAttrs: { // works with this.shouldMirrorProps // these are properties that should be made into attributes on the element - key is the string as found in this.props and value is the attr it should be applied as
 			pIcon: 'image',
-			pPriority: 'priority'
+			pPriority: 'priority',
+			pHideClose: 'hideclose'
 		},
 		shouldMirrorProps: function(aNextProps, aIsMount) { // works with this.customAttrs
 			var node = ReactDOM.findDOMNode(this);
@@ -67,7 +72,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				if (nProp in this.customAttrs) {
 					if (aIsMount || this.props[nProp] !== aNextProps[nProp]) { // // i do aIsMount check, because on mount, old prop is same as new prop, becase i call in componentDidMount shouldMirrorProps(this.props)
 						console.log(['setting custom attr "' + nProp + '"','old: ' + this.props[nProp], 'new: ' + aNextProps[nProp]].join('\n'));
-						if (aNextProps[nProp] === null || aNextProps[nProp] === undefined) {
+						if (!aIsMount && (aNextProps[nProp] === null || aNextProps[nProp] === undefined)) {
 							node.removeAttribute(this.customAttrs[nProp]);
 						} else {
 							node.setAttribute(this.customAttrs[nProp], aNextProps[nProp]);
@@ -84,6 +89,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 			//	pType
 			//	pBtns
 			//	pId - this is just how normally the notification bar happens, it sets the value to this
+			//	pHideClose
 			var cChildren;
 			if (this.props.pBtns && this.props.pBtns.length) {
 				cChildren = [];
@@ -123,7 +129,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				if (nProp in this.customAttrs) {
 					if (aIsMount || this.props[nProp] !== aNextProps[nProp]) { // // i do aIsMount check, because on mount, old prop is same as new prop, becase i call in componentDidMount shouldMirrorProps(this.props)
 						console.log(['setting custom attr "' + nProp + '"','old: ' + this.props[nProp], 'new: ' + aNextProps[nProp]].join('\n'));
-						if (aNextProps[nProp] === null || aNextProps[nProp] === undefined) {
+						if (!aIsMount && (aNextProps[nProp] === null || aNextProps[nProp] === undefined)) {
 							node.removeAttribute(this.customAttrs[nProp]);
 						} else {
 							node.setAttribute(this.customAttrs[nProp], aNextProps[nProp]);
@@ -193,7 +199,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				if (nProp in this.customAttrs) {
 					if (aIsMount || this.props[nProp] !== aNextProps[nProp]) { // // i do aIsMount check, because on mount, old prop is same as new prop, becase i call in componentDidMount shouldMirrorProps(this.props)
 						console.log(['setting custom attr "' + nProp + '"','old: ' + this.props[nProp], 'new: ' + aNextProps[nProp]].join('\n'));
-						if (aNextProps[nProp] === null || aNextProps[nProp] === undefined) {
+						if (!aIsMount && (aNextProps[nProp] === null || aNextProps[nProp] === undefined)) {
 							node.removeAttribute(this.customAttrs[nProp]);
 						} else {
 							node.setAttribute(this.customAttrs[nProp], aNextProps[nProp]);
