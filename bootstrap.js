@@ -64,7 +64,7 @@ var AB = { // AB stands for attention bar
 		}
 		*/
 	}, // holds all instances
-	domIdPrefix: core.addon.id.replace(/[^a-z0-9-_\:\.]/ig,'a'), // The ID and NAME elements must start with a letter i.e. upper case A to Z or lower case a to z; a number is not allowed. After the first letter any number of letters (a to z, A to Z), digits (0 to 9), hyphens (-), underscores (_), colons (:) and periods (.) are allowed. // http://www.electrictoolbox.com/valid-characters-html-id-attribute/
+	domIdPrefix: core.addon.id.replace(/[^a-z0-9-_\:\.]/ig,'AB'), // The ID and NAME elements must start with a letter i.e. upper case A to Z or lower case a to z; a number is not allowed. After the first letter any number of letters (a to z, A to Z), digits (0 to 9), hyphens (-), underscores (_), colons (:) and periods (.) are allowed. // http://www.electrictoolbox.com/valid-characters-html-id-attribute/
 	Callbacks: {},
 	// key is nid, if nid is of a notification then the callback is a close callback, else it is of a click callback.
 	// all Callbacks have last arg of aBrowser which is the xul browser element that was focused when user triggered the cb
@@ -82,10 +82,10 @@ var AB = { // AB stands for attention bar
 		comp: stands for react component, this gets rendered
 	}
 	*/
-	setState: function(aInst) { // :note: aInst is really aInstState
-		// this function will add to aInst and all bts in aInst.aBtns a id based on this.genId()
+	setState: function(aInstState) { // :note: aInstState is really aInstStateState
+		// this function will add to aInstState and all bts in aInstState.aBtns a id based on this.genId()
 		// this function also sends setState message to all windows to update this instances
-		// aInst should be strings only, as it is sent to all windows
+		// aInstState should be strings only, as it is sent to all windows
 		
 		// :note: to remove a callback you have to set it to an empty function - ```getScope().AB.Insts[0].state.aClose = function() {}; getScope().AB.setState(getScope().AB.Insts[0].state);```
 		
@@ -124,41 +124,41 @@ var AB = { // AB stands for attention bar
 		]
 		*/
 		
-		if (!('aId' in aInst)) {
-			validateOptionsObj(aInst, cInstDefaults);
-			aInst.aId = this.genId();
-			this.Insts[aInst.aId] = {
-				state: aInst
+		if (!('aId' in aInstState)) {
+			validateOptionsObj(aInstState, cInstDefaults);
+			aInstState.aId = this.genId();
+			this.Insts[aInstState.aId] = {
+				state: aInstState
 			};
-			this.Callbacks[aInst.aId] = function(aBrowser) {
-				AB.nonDevUserSpecifiedCloseCb(aInst.aId, aBrowser); // this one doesnt need bind, only devuser callbacks are bound
+			this.Callbacks[aInstState.aId] = function(aBrowser) {
+				AB.nonDevUserSpecifiedCloseCb(aInstState.aId, aBrowser); // this one doesnt need bind, only devuser callbacks are bound
 			};
 		}
-		if (aInst.aClose) {
-			var aClose = aInst.aClose.bind({inststate:aInst});
-			delete aInst.aClose;
+		if (aInstState.aClose) {
+			var aClose = aInstState.aClose.bind({inststate:aInstState});
+			delete aInstState.aClose;
 			
-			this.Callbacks[aInst.aId] = function(aBrowser) {
+			this.Callbacks[aInstState.aId] = function(aBrowser) {
 				var rez_aClose = aClose(aBrowser);
 				if (rez_aClose !== false) { // :note: if onClose returns false, it cancels the closing
-					AB.nonDevUserSpecifiedCloseCb(aInst.aId, aBrowser); // this one doesnt need bind, only devuser callbacks are bound
+					AB.nonDevUserSpecifiedCloseCb(aInstState.aId, aBrowser); // this one doesnt need bind, only devuser callbacks are bound
 				}
 			};
 			
 		}
 		
 		// give any newly added btns and menu items an id		
-		if (aInst.aBtns) {
-			for (var i=0; i<aInst.aBtns.length; i++) {
-				if (!('bId' in aInst.aBtns[i])) {
-					aInst.aBtns[i].bId = this.genId();
+		if (aInstState.aBtns) {
+			for (var i=0; i<aInstState.aBtns.length; i++) {
+				if (!('bId' in aInstState.aBtns[i])) {
+					aInstState.aBtns[i].bId = this.genId();
 				}
-				if (aInst.aBtns[i].bClick) { // i dont do this only if bId is not there, because devuser can change it up. i detect change by presenence of the bClick, because after i move it out of state obj and into callbacks obj, i delete it from state obj. so its not here unless changed
-					AB.Callbacks[aInst.aBtns[i].bId] = aInst.aBtns[i].bClick.bind({inststate:aInst, btn:aInst.aBtns[i]});
-					delete aInst.aBtns[i].bClick; // AB.Callbacks[aInst.aId] is the doClose callback devuser should call if they want it to close out
+				if (aInstState.aBtns[i].bClick) { // i dont do this only if bId is not there, because devuser can change it up. i detect change by presenence of the bClick, because after i move it out of state obj and into callbacks obj, i delete it from state obj. so its not here unless changed
+					AB.Callbacks[aInstState.aBtns[i].bId] = aInstState.aBtns[i].bClick.bind({inststate:aInstState, btn:aInstState.aBtns[i]});
+					delete aInstState.aBtns[i].bClick; // AB.Callbacks[aInstState.aId] is the doClose callback devuser should call if they want it to close out
 				}
-				if (aInst.aBtns[i].bMenu) {
-					AB.iterMenuForIdAndCbs(aInst.aBtns[i].bMenu, aInst.aId, aInst.aBtns[i]);
+				if (aInstState.aBtns[i].bMenu) {
+					AB.iterMenuForIdAndCbs(aInstState.aBtns[i].bMenu, aInstState.aId, aInstState.aBtns[i]);
 				}
 			}
 		}
@@ -166,30 +166,32 @@ var AB = { // AB stands for attention bar
 		// go through all windows, if this id is not in it, then mount it, if its there then setState on it
 		
 		var doit = function(aDOMWindow) {
+			// start - orig block link181888888
 			if (!aDOMWindow.gBrowser) {
 				return; // because i am targeting cDeck, windows without gBrowser won't have it
 			}
 			AB.ensureInitedIntoWindow(aDOMWindow);
 			
-			if (aInst.aId in aDOMWindow[core.addon.id].AB.Insts) {
-				aDOMWindow[core.addon.id].AB.Insts[aInst.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInst));
-				aDOMWindow[core.addon.id].AB.Insts[aInst.aId].setState(JSON.parse(JSON.stringify(aInst)));
+			if (aInstState.aId in aDOMWindow[core.addon.id + '-AB'].Insts) {
+				aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInstState));
+				aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].setState(JSON.parse(JSON.stringify(aInstState)));
 			} else {
 				// mount it
-				aDOMWindow[core.addon.id].AB.Insts[aInst.aId] = {};
-				aDOMWindow[core.addon.id].AB.Insts[aInst.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInst));
+				aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId] = {};
+				aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInstState));
 				var cDeck = aDOMWindow.document.getElementById('content-deck');
 				var cNotificationBox = aDOMWindow.document.createElementNS(NS_XUL, 'notificationbox');
-				console.error('inserting', 'notificationbox-' + aInst.aId + '--' + AB.domIdPrefix);
-				cNotificationBox.setAttribute('id', 'notificationbox-' + aInst.aId + '--' + AB.domIdPrefix);
-				if (!aInst.aPos) {
+				console.error('inserting', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
+				cNotificationBox.setAttribute('id', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
+				if (!aInstState.aPos) {
 					cDeck.parentNode.appendChild(cNotificationBox);
 				} else {
 					cDeck.parentNode.insertBefore(cNotificationBox, cDeck); // for top
 				}
-				aDOMWindow[core.addon.id].AB.Insts[aInst.aId].relement = aDOMWindow.React.createElement(aDOMWindow[core.addon.id].AB.masterComponents.Notification, aInst);
-				aDOMWindow.ReactDOM.render(aDOMWindow[core.addon.id].AB.Insts[aInst.aId].relement, cNotificationBox);
+				aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].relement = aDOMWindow.React.createElement(aDOMWindow[core.addon.id + '-AB'].masterComponents.Notification, aInstState);
+				aDOMWindow.ReactDOM.render(aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].relement, cNotificationBox);
 			}
+			// end - orig block link181888888
 		};
 		
 		var DOMWindows = Services.wm.getEnumerator(null);
@@ -232,103 +234,12 @@ var AB = { // AB stands for attention bar
 			}
 		});
 	},
-	/*
-	getInst: function(aKey, aVal) {
-		for (var i=0; i<this.inst.length; i++) {
-			if (this.inst[i][aKey] && this.inst[i][aKey] == aVal) {
-				return this.inst[i];
-			}
-		}
-	},
-	ensureInstancesToAllWindows: function() {
-		// matches the bootstrap inst into all windows
-		// goes through all windows, checks if all instances are 
-		var DOMWindows = Services.wm.getEnumerator(null);
-		while (DOMWindows.hasMoreElements()) {
-			var aDOMWindow = DOMWindows.getNext();
-			if (aDOMWindow.document.readyState == 'complete') { //on startup `aDOMWindow.document.readyState` is `uninitialized`
-				ensureInstancesToWindow(aDOMWindow);
-			} else {
-				aDOMWindow.addEventListener('load', function () {
-					aDOMWindow.removeEventListener('load', arguments.callee, false);
-					ensureInstancesToWindow(aDOMWindow);
-				}, false);
-			}
-		}
-	},
-	ensureInstancesToWindow: function(aDOMWindow) {
-		// runs AB.initIntoWindow if needed
-		if (!this.inst.length && (!aDOMWindow[core.addon.id] || !aDOMWindow[core.addon.id].AB || !aDOMWindow[core.addon.id].AB.inst || !aDOMWindow[core.addon.id].AB.inst.length)) {
-			// bootstrap inst is empty, and so is window inst
-			console.log('bootstrap inst is empty, and so is window inst');
-			return;
-		}
-		if (!aDOMWindow[core.addon.id]) {
-			AB.initIntoWindow(aDOMWindow);
-		} else if (!aDOMWindow[core.addon.id].AB) {
-			AB.initIntoWindow(aDOMWindow);
-		}
-		
-		var winAB = aDOMWindow[core.addon.id].AB;
-		
-		// get all ids of instances in bootstrap
-		var instIdsInBootstrap = [];
-		for (var i=0; i<this.inst.length; i++) {
-			instIdsInBootstrap.push(this.inst[i].aId);
-		}
-		
-		// get all ids of instances in bootstrap
-		// var instIdsInWindow = [];
-		// for (var i=0; i<winAB.inst.length; i++) {
-			// instIdsInWindow.push(winAB.inst[i].aId);
-		// }
-		var instIdsInWindow = Object.keys(winAB.inst); // i commented about the above and did like this due to link779928114
-
-		// check if need to unmount
-		for (var i=0; i<instIdsInWindow.length; i++) {
-			// this id is in the window
-			if (instIdsInBootstrap.indexOf(instIdsInWindow[i]) == -1) {
-				// this id is not in bootstrap
-				// unmount this
-				var cNotificationBox = aDOMWindow.document.getElementById(this.domIdPrefix + '-notificationbox-' + instIdsInWindow[i]);
-				aDOMWindow.ReactDOM.unmountComponentAtNode(cNotificationBox);
-				cNotificationBox.parentNode.removeChild(cNotificationBox);
-			}
-		}
-		
-		// check if need to mount
-		for (var i=0; i<instIdsInBootstrap.length; i++) {
-			// this id is in the bootstrap
-			if (instIdsInWindow.indexOf(instIdsInBootstrap[i]) == -1) {
-				// this id is not in window
-				// mount this
-				var aDOMDocument = aDOMWindow.document;
-				var cDeck = aDOMDocument.getElementById('content-deck');
-				var cNotificationBox = aDOMDocument.createElementNS(NS_XUL, 'notificationbox');
-				cNotificationBox.setAttribute('id', 'notificationbox-' + instIdsInBootstrap[i] + '--' + this.domIdPrefix);
-				if (!this.inst[i].aOptions.aPos) {
-					// by default place at bottom
-					cDeck.parentNode.appendChild(cNotificationBox);
-				} else {
-					cDeck.parentNode.insertBefore(cNotificationBox, cDeck); // for top
-				}
-				aDOMWindow.ReactDOM.render(this.inst[i].comp, cNotificationBox); // :note: comp must be value holding React.createElement(AB.masterComponents.Bar, {});
-				aDOMWindow[core.addon.id].AB.inst[this.inst[i].aId] = {}; // :note: in window, the inst is an array of ids. in bootstrap inst is an array of objects // link779928114
-			}
-		}
-			
-		
-	},
-	*/
 	uninitFromWindow: function(aDOMWindow) {
-		if (!aDOMWindow[core.addon.id]) {
-			return;
-		}
-		if (!aDOMWindow[core.addon.id].AB) {
+		if (!aDOMWindow[core.addon.id + '-AB']) {
 			return;
 		}
 		console.error('doing uninit from window');
-		var winAB = aDOMWindow[core.addon.id].AB;
+		var winAB = aDOMWindow[core.addon.id + '-AB'];
 		for (var aInstsId in winAB.Insts) {
 			// unmount this
 			console.error('aInstsId:', aInstsId, 'notificationbox-' + aInstsId + '--' + this.domIdPrefix);
@@ -336,17 +247,13 @@ var AB = { // AB stands for attention bar
 			aDOMWindow.ReactDOM.unmountComponentAtNode(cNotificationBox);
 			cNotificationBox.parentNode.removeChild(cNotificationBox);
 		}
-		delete aDOMWindow[core.addon.id].AB;
+		delete aDOMWindow[core.addon.id + '-AB'];
 		console.error('done uninit');
-		// :note: i cant delete aDOMWindow[core.addon.id] on unload because i dont know if others are using it
 	},
 	ensureInitedIntoWindow: function(aDOMWindow) {
 		// dont run this yoruself, ensureInstancesToWindow runs this. so if you want to run yourself, then run ensureInstancesToWindow(aDOMWindow)
-		if (!aDOMWindow[core.addon.id]) {
-			aDOMWindow[core.addon.id] = {}; // :note: i cant delete aDOMWindow[core.addon.id] on unload because i dont know if others are using it
-		}
-		if (!aDOMWindow[core.addon.id].AB) {
-			aDOMWindow[core.addon.id].AB = {
+		if (!aDOMWindow[core.addon.id + '-AB']) {
+			aDOMWindow[core.addon.id + '-AB'] = {
 				Insts: {},
 				domIdPrefix: AB.domIdPrefix
 			}; // ab stands for attention bar
@@ -363,9 +270,26 @@ var AB = { // AB stands for attention bar
 	},
 	init: function() {
 		Services.mm.addMessageListener(core.addon.id + '-AB', this.msgListener);
+		
+		Services.wm.addListener(AB.winListener);
+		
+		// i dont iterate all windows now and do ensureInitedIntoWindow, because i only run ensureInitedIntoWindow when there is something to add, so its lazy
+		
+		// and its impossible that Insts exists before Init, so no need to iterate through all windows.
 	},
 	uninit: function() {
 		Services.mm.removeMessageListener(core.addon.id + '-AB', this.msgListener);
+		
+		Services.wm.removeListener(AB.winListener);
+		
+		// go through all windows and unmount
+		var DOMWindows = Services.wm.getEnumerator(null);
+		while (DOMWindows.hasMoreElements()) {
+			var aDOMWindow = DOMWindows.getNext();
+			if (aDOMWindow[core.addon.id + '-AB']) {
+				AB.uninitFromWindow(aDOMWindow);
+			}
+		}
 	},
 	msgListener: {
 		receiveMessage: function(aMsgEvent) {
@@ -378,85 +302,82 @@ var AB = { // AB stands for attention bar
 				AB.Callbacks[cCallbackId](cBrowser);
 			}
 		}
-	}
-};
-
-/*start - windowlistener*/
-var windowListener = {
-	//DO NOT EDIT HERE
-	onOpenWindow: function (aXULWindow) {
-		// Wait for the window to finish loading
-		var aDOMWindow = aXULWindow.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
-		aDOMWindow.addEventListener('load', function () {
-			aDOMWindow.removeEventListener('load', arguments.callee, false);
-			windowListener.loadIntoWindow(aDOMWindow);
-		}, false);
 	},
-	onCloseWindow: function (aXULWindow) {},
-	onWindowTitleChange: function (aXULWindow, aNewTitle) {},
-	register: function () {
+	loadInstancesIntoWindow: function(aDOMWindow) {
+		// this function is called when there may be instances in AB.Insts but and it needs to be verified that its mounted in window
+		// basically this is called when a new window is opened
 		
-		// Load into any existing windows
-		var DOMWindows = Services.wm.getEnumerator(null);
-		while (DOMWindows.hasMoreElements()) {
-			var aDOMWindow = DOMWindows.getNext();
-			if (aDOMWindow.document.readyState == 'complete') { //on startup `aDOMWindow.document.readyState` is `uninitialized`
-				windowListener.loadIntoWindow(aDOMWindow);
-			} else {
-				aDOMWindow.addEventListener('load', function () {
-					aDOMWindow.removeEventListener('load', arguments.callee, false);
-					windowListener.loadIntoWindow(aDOMWindow);
-				}, false);
+		var idsInsts = Object.keys(AB.Insts);
+		if (!idsInsts.length) {
+			return;
+		}
+		
+		var doit = function(aDOMWindow) {
+			// check again, in case by the time window loaded, AB.Insts changed
+			var idsInsts = Object.keys(AB.Insts);
+			if (!idsInsts.length) {
+				return;
 			}
-		}
-		// Listen to new windows
-		Services.wm.addListener(windowListener);
-	},
-	unregister: function () {
-		// Unload from any existing windows
-		var DOMWindows = Services.wm.getEnumerator(null);
-		while (DOMWindows.hasMoreElements()) {
-			var aDOMWindow = DOMWindows.getNext();
-			windowListener.unloadFromWindow(aDOMWindow);
-		}
-		/*
-		for (var u in unloaders) {
-			unloaders[u]();
-		}
-		*/
-		//Stop listening so future added windows dont get this attached
-		Services.wm.removeListener(windowListener);
-	},
-	//END - DO NOT EDIT HERE
-	loadIntoWindow: function (aDOMWindow) {
-		if (!aDOMWindow) { return }
+			
+			// start - copy of block link181888888
+			if (!aDOMWindow.gBrowser) {
+				return; // because i am targeting cDeck, windows without gBrowser won't have it
+			}
+
+			AB.ensureInitedIntoWindow(aDOMWindow);
+
+			for (var aInstId in AB.Insts) {
+				var aInstState = AB.Insts[aInstId].state;
+				if (aInstState.aId in aDOMWindow[core.addon.id + '-AB'].Insts) {
+					console.error('this is really weird, it should never happen, as i only call this function when a new window opens');
+					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInstState));
+					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].setState(JSON.parse(JSON.stringify(aInstState)));
+				} else {
+					// mount it
+					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId] = {};
+					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInstState));
+					var cDeck = aDOMWindow.document.getElementById('content-deck');
+					var cNotificationBox = aDOMWindow.document.createElementNS(NS_XUL, 'notificationbox');
+					console.error('inserting', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
+					cNotificationBox.setAttribute('id', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
+					if (!aInstState.aPos) {
+						cDeck.parentNode.appendChild(cNotificationBox);
+					} else {
+						cDeck.parentNode.insertBefore(cNotificationBox, cDeck); // for top
+					}
+					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].relement = aDOMWindow.React.createElement(aDOMWindow[core.addon.id + '-AB'].masterComponents.Notification, aInstState);
+					aDOMWindow.ReactDOM.render(aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].relement, cNotificationBox);
+				}
+				// end - copy of block link181888888
+			}
+		};
 		
-		// AB.ensureInstancesToWindow(aDOMWindow);
-	},
-	unloadFromWindow: function (aDOMWindow) {
-		if (!aDOMWindow) { return }
+
+		if (aDOMWindow.document.readyState == 'complete') { //on startup `aDOMWindow.document.readyState` is `uninitialized`
+			doit(aDOMWindow);
+		} else {
+			aDOMWindow.addEventListener('load', function () {
+				aDOMWindow.removeEventListener('load', arguments.callee, false);
+				doit(aDOMWindow);
+			}, false);
+		}
 		
-		AB.uninitFromWindow(aDOMWindow);
-		delete aDOMWindow[core.addon.id];
+	},
+	winListener: {
+		onOpenWindow: function (aXULWindow) {
+			// Wait for the window to finish loading
+			var aDOMWindow = aXULWindow.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
+			aDOMWindow.addEventListener('load', function () {
+				aDOMWindow.removeEventListener('load', arguments.callee, false);
+				AB.loadInstancesIntoWindow(aDOMWindow);
+			}, false);
+		},
+		onCloseWindow: function (aXULWindow) {},
+		onWindowTitleChange: function (aXULWindow, aNewTitle) {},
 	}
 };
-/*end - windowlistener*/
 
-function install() {}
-
-function uninstall(aData, aReason) {
-	if (aReason == ADDON_UNINSTALL) {
-
-	}
-}
-
-function startup(aData, aReason) {
-	// extendCore();
-	
-	AB.init(); // should do before windowListener.register(); which has AB.ensureInstancesToAllWindows in the loadIntoWindow proc
-	
-	windowListener.register();
-
+function testCase() {
 	xpcomSetTimeout(gNsiTimer, 4000, function() {
 		Services.prompt.alert(Services.wm.getMostRecentWindow('navigator:browser'), 'now', 'will now create it');
 		
@@ -540,12 +461,27 @@ function startup(aData, aReason) {
 	});
 }
 
+function install() {}
+
+function uninstall(aData, aReason) {
+	if (aReason == ADDON_UNINSTALL) {
+
+	}
+}
+
+function startup(aData, aReason) {
+	// extendCore();
+	
+	AB.init();
+
+	testCase();
+}
+
 function shutdown(aData, aReason) {
 
 	if (aReason == APP_SHUTDOWN) { return }
-	
-	windowListener.unregister();
-	AB.uninit(); // should call after windowListener.unregister()
+
+	AB.uninit();
 
 }
 // END - Addon Functionalities
