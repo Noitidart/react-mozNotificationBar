@@ -69,8 +69,11 @@ var AB = { // AB stands for attention bar
 	// key is nid, if nid is of a notification then the callback is a close callback, else it is of a click callback.
 	// all Callbacks have last arg of aBrowser which is the xul browser element that was focused when user triggered the cb
 	// click callbacks have first arg doClose, you should call doClose(aBrowser) if you want to close out the AB
-	// click callbacks are bound `this` to the button entry in aInst[id].state, so i can modify it can call setState again
-	// close callbacks are bound `this` to the entry in aInst
+	// callbacks this is bound to useful stuff. all are passed by reference so modifying that modfieis the entry in AB.Insts
+		// for example clicking a menu item:
+			// this: Object { inststate: Object, btn: Object, menu: Array[2], menuitem: Object } bootstrap.js:501
+		// clicking btn, inst will have inststate and btn
+		// closing this has inststate only
 	nid: -1, // stands for next_id, used for main toolbar, and also for each button, and also each menu item
 	/*
 	{
