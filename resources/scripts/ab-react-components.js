@@ -1,4 +1,8 @@
 window['react-mozNotificationBar@jetpack'].AB.id = 'react-mozNotificationBar@jetpack';
+window['react-mozNotificationBar@jetpack'].AB.contentMMForBrowser = function(aXULBrowser) {
+	// aXULBrowser is something like gBrowser.selectedBrowser
+	return aXULBrowser._docShell.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIContentFrameMessageManager)
+}
 window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 	Deck: 'notificationbox', // not a react component, just append this before inserting react component into it
 	Notification: React.createClass({
@@ -6,8 +10,13 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 		componentDidMount: function() {
 			console.error('ok mounted'); // for some reason this doesnt trigger
 			window['react-mozNotificationBar@jetpack'].AB.Insts[this.props.aId].setState = this.setState.bind(this);
-			var node = ReactDOM.findDOMNode(this);
 			window['react-mozNotificationBar@jetpack'].AB.Node = node;
+			
+			var node = ReactDOM.findDOMNode(this);
+			node.close = this.close;
+		},
+		close: function() {
+			window['react-mozNotificationBar@jetpack'].AB.contentMMForBrowser(gBrowser.selectedBrowser).sendAsyncMessage(window['react-mozNotificationBar@jetpack'].AB.id + '-AB', this.props.aId);
 		},
 		getInitialState: function() {
 			return {

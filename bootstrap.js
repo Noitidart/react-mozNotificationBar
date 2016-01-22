@@ -65,7 +65,9 @@ var AB = { // AB stands for attention bar
 		*/
 	}, // holds all instances
 	domIdPrefix: core.addon.id.replace(/[^a-z0-9-_\:\.]/ig,'a'), // The ID and NAME elements must start with a letter i.e. upper case A to Z or lower case a to z; a number is not allowed. After the first letter any number of letters (a to z, A to Z), digits (0 to 9), hyphens (-), underscores (_), colons (:) and periods (.) are allowed. // http://www.electrictoolbox.com/valid-characters-html-id-attribute/
-	Callbacks: {}, // key is nid, if nid is of a notification then the callback is a close callback, else it is of a click callback. if callback is for click it gets a param passed to it, the param is doClose, and if you want to close it out, do `doClose()`
+	Callbacks: {},
+	// key is nid, if nid is of a notification then the callback is a close callback, else it is of a click callback. if callback is for click it gets a param passed to it, the param is doClose, and if you want to close it out, do `doClose()`
+	// all Callbacks have first arg of aBrowser which is the xul browser element that was focused when user triggered the cb
 	nid: -1, // stands for next_id, used for main toolbar, and also for each button, and also each menu item
 	/*
 	{
@@ -120,6 +122,11 @@ var AB = { // AB stands for attention bar
 			this.Insts[aInst.aId] = {
 				state: aInst
 			};
+			this.Callbacks[aInst.aId] = function(aBrowser) {
+				// close type callback
+				aBrowser.contentWindow.alert('ok this tab sent the close message');
+				// on close go through and get all id's in there and remove all callbacks for it. and then unmount from all windows.
+			}
 		}
 		
 		// give any newly added btns and menu items an id		
@@ -319,6 +326,22 @@ var AB = { // AB stands for attention bar
 			}
 			Services.scriptloader.loadSubScript(core.addon.path.scripts + 'ab-react-components.js?' + core.addon.cache_key, aDOMWindow);
 		}
+	},
+	init: function() {
+		Services.mm.addMessageListener(core.addon.id + '-AB', this.msgListener);
+	},
+	uninit: function() {
+		Services.mm.removeMessageListener(core.addon.id + '-AB', this.msgListener);
+	},
+	msgListener: {
+		receiveMessage: function(aMsgEvent) {
+			var aMsgEventData = aMsgEvent.data;
+			console.error('getting aMsgEvent, data:', aMsgEventData);
+			// this means trigger a callback with id aMsgEventData
+			var cCallbackId = aMsgEventData;
+			var cBrowser = aMsgEvent.target;
+			AB.Callbacks[cCallbackId](cBrowser);
+		}
 	}
 };
 
@@ -393,6 +416,8 @@ function uninstall(aData, aReason) {
 
 function startup(aData, aReason) {
 	// extendCore();
+	
+	AB.init(); // should do before windowListener.register(); which has AB.ensureInstancesToAllWindows in the loadIntoWindow proc
 	
 	windowListener.register();
 
@@ -474,6 +499,7 @@ function shutdown(aData, aReason) {
 	if (aReason == APP_SHUTDOWN) { return }
 	
 	windowListener.unregister();
+	AB.uninit(); // should call after windowListener.unregister()
 
 }
 // END - Addon Functionalities
