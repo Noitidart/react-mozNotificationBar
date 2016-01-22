@@ -121,18 +121,14 @@ var AB = { // AB stands for attention bar
 			};
 		}
 		
-		// give any newly added btns and menu items an id
+		// give any newly added btns and menu items an id		
 		if (aInst.aBtns) {
 			for (var i=0; i<aInst.aBtns.length; i++) {
 				if (!('bId' in aInst.aBtns[i])) {
 					aInst.aBtns[i].bId = this.genId();
 				}
 				if (aInst.aBtns[i].bMenu) {
-					for (var j=0; j<aInst.aBtns[i].bMenu.length; j++) {
-						if (!('mId' in aInst.aBtns[i].bMenu[j])) {
-							aInst.aBtns[i].bMenu[j].mId = this.genId();
-						}
-					}
+					AB.iterMenuForId(aInst.aBtns[i].bMenu);
 				}
 			}
 		}
@@ -182,6 +178,17 @@ var AB = { // AB stands for attention bar
 	genId: function() {
 		this.nid++;
 		return this.nid;
+	},
+	iterMenuForId: function(jMenu) {
+		// goes through and gives every menuitem and submenu item (anything that has cTxt) an id, as they are clickable
+		jMenu.forEach(function(jEntry, jIndex, jArr) {
+			if (!jEntry.cId && jEntry.cTxt) { // cId will NEVER be 0 but if it does it would be a problem with !jEntry.cId because first the notification bar is genId and the button is genId and nid starts at 0 so its at least 2 by first jMenu
+				jEntry.cId = AB.genId();
+				if (jEntry.cMenu) {
+					AB.iterMenuForId(jEntry.cMenu);
+				}
+			}
+		});
 	},
 	/*
 	getInst: function(aKey, aVal) {

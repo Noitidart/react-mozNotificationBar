@@ -89,7 +89,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				cChildren = [];
 				for (var i=0; i<this.props.pBtns.length; i++) {
 					var cButtonProps = {
-						key: this.props.pBtns[i].bId,
+						// key: this.props.pBtns[i].bId,
 						pId: this.props.pBtns[i].bId,
 						pKey: this.props.pBtns[i].bKey,
 						pTxt: this.props.pBtns[i].bTxt,
@@ -204,7 +204,7 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 		},
 		render: function() {
 			// incoming props
-			//	anything in a pMenu array. currently only cImage, cMenu, cIcon, cClass do anything (cClass because you may want to menuitem-non-iconic) per https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/menuitem#Style_classes
+			//	anything in a pMenu array. currently only cImage, cMenu, cIcon, cId, cClass do anything (cClass because you may want to menuitem-non-iconic) per https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/menuitem#Style_classes
 			
 			var cProps = {
 				label: this.props.cTxt,
