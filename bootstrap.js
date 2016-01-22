@@ -66,8 +66,11 @@ var AB = { // AB stands for attention bar
 	}, // holds all instances
 	domIdPrefix: core.addon.id.replace(/[^a-z0-9-_\:\.]/ig,'a'), // The ID and NAME elements must start with a letter i.e. upper case A to Z or lower case a to z; a number is not allowed. After the first letter any number of letters (a to z, A to Z), digits (0 to 9), hyphens (-), underscores (_), colons (:) and periods (.) are allowed. // http://www.electrictoolbox.com/valid-characters-html-id-attribute/
 	Callbacks: {},
-	// key is nid, if nid is of a notification then the callback is a close callback, else it is of a click callback. if callback is for click it gets a param passed to it, the param is doClose, and if you want to close it out, do `doClose()`
-	// all Callbacks have first arg of aBrowser which is the xul browser element that was focused when user triggered the cb
+	// key is nid, if nid is of a notification then the callback is a close callback, else it is of a click callback.
+	// all Callbacks have last arg of aBrowser which is the xul browser element that was focused when user triggered the cb
+	// click callbacks have first arg doClose, you should call doClose(aBrowser) if you want to close out the AB
+	// click callbacks are bound `this` to the button entry in aInst[id].state, so i can modify it can call setState again
+	// close callbacks are bound `this` to the entry in aInst
 	nid: -1, // stands for next_id, used for main toolbar, and also for each button, and also each menu item
 	/*
 	{
@@ -80,6 +83,8 @@ var AB = { // AB stands for attention bar
 		// this function will add to aInst and all bts in aInst.aBtns a id based on this.genId()
 		// this function also sends setState message to all windows to update this instances
 		// aInst should be strings only, as it is sent to all windows
+		
+		// :note: to remove a callback you have to set it to an empty function - ```getScope().AB.Insts[0].state.aClose = function() {}; getScope().AB.setState(getScope().AB.Insts[0].state);```
 		
 		// RETURNS
 			// id of inst pushed
@@ -123,10 +128,20 @@ var AB = { // AB stands for attention bar
 				state: aInst
 			};
 			this.Callbacks[aInst.aId] = function(aBrowser) {
-				// close type callback
-				aBrowser.contentWindow.alert('ok this tab sent the close message');
-				// on close go through and get all id's in there and remove all callbacks for it. and then unmount from all windows.
-			}
+				AB.nonDevUserSpecifiedCloseCb(aInst.aId, aBrowser); // this one doesnt need bind, only devuser callbacks are bound
+			};
+		}
+		if (aInst.aClose) {
+			var aClose = aInst.aClose.bind(aInst);
+			delete aInst.aClose;
+			
+			this.Callbacks[aInst.aId] = function(aBrowser) {
+				var rez_aClose = aClose(aBrowser);
+				if (rez_aClose !== false) { // :note: if onClose returns false, it cancels the closing
+					AB.nonDevUserSpecifiedCloseCb(aInst.aId, aBrowser); // this one doesnt need bind, only devuser callbacks are bound
+				}
+			};
+			
 		}
 		
 		// give any newly added btns and menu items an id		
@@ -135,8 +150,12 @@ var AB = { // AB stands for attention bar
 				if (!('bId' in aInst.aBtns[i])) {
 					aInst.aBtns[i].bId = this.genId();
 				}
+				if (aInst.aBtns[i].bClick) { // i dont do this only if bId is not there, because devuser can change it up. i detect change by presenence of the bClick, because after i move it out of state obj and into callbacks obj, i delete it from state obj. so its not here unless changed
+					AB.Callbacks[aInst.aBtns[i].bId] = aInst.aBtns[i].bClick.bind(aInst.aBtns[i]);
+					delete aInst.aBtns[i].bClick; // AB.Callbacks[aInst.aId] is the doClose callback devuser should call if they want it to close out
+				}
 				if (aInst.aBtns[i].bMenu) {
-					AB.iterMenuForId(aInst.aBtns[i].bMenu);
+					AB.iterMenuForIdAndCbs(aInst.aBtns[i].bMenu, aInst.aId, aInst.aBtns[i]);
 				}
 			}
 		}
@@ -183,18 +202,30 @@ var AB = { // AB stands for attention bar
 			}
 		}
 	},
+	nonDevUserSpecifiedCloseCb: function(aInstId, aBrowser) {
+		// this does the unmounting from all windows, and deletes entry from this.Insts
+		
+		aBrowser.contentWindow.alert('ok this tab sent the close message for aInstId ' + aInstId);
+		// on close go through and get all id's in there and remove all callbacks for it. and then unmount from all windows.
+	},
 	genId: function() {
 		this.nid++;
 		return this.nid;
 	},
-	iterMenuForId: function(jMenu) {
+	iterMenuForIdAndCbs: function(jMenu, aCloseCallbackId, aBtnEntry) {
+		// aBtnArrEntry is reference as its the btn object in the .aBtns arr
 		// goes through and gives every menuitem and submenu item (anything that has cTxt) an id, as they are clickable
+		// ALSO moves cClick callbacks into AB.Callbacks
 		jMenu.forEach(function(jEntry, jIndex, jArr) {
 			if (!jEntry.cId && jEntry.cTxt) { // cId will NEVER be 0 but if it does it would be a problem with !jEntry.cId because first the notification bar is genId and the button is genId and nid starts at 0 so its at least 2 by first jMenu
 				jEntry.cId = AB.genId();
 				if (jEntry.cMenu) {
-					AB.iterMenuForId(jEntry.cMenu);
+					AB.iterMenuForIdAndCbs(jEntry.cMenu, aCloseCallbackId, aBtnEntry);
 				}
+			}
+			if (jEntry.cClick) { // i dont do this only if bId is not there, because devuser can change it up. i detect change by presenence of the bClick, because after i move it out of state obj and into callbacks obj, i delete it from state obj. so its not here unless changed
+				AB.Callbacks[jEntry.cId] = jEntry.cClick.bind(aBtnEntry);
+				delete jEntry.cClick; // AB.Callbacks[aInst.aId] is the doClose callback devuser should call if they want it to close out
 			}
 		});
 	},
@@ -340,7 +371,9 @@ var AB = { // AB stands for attention bar
 			// this means trigger a callback with id aMsgEventData
 			var cCallbackId = aMsgEventData;
 			var cBrowser = aMsgEvent.target;
-			AB.Callbacks[cCallbackId](cBrowser);
+			if (AB.Callbacks[cCallbackId]) { // need this check because react components always send message on click, but it may not have a callback
+				AB.Callbacks[cCallbackId](cBrowser);
+			}
 		}
 	}
 };

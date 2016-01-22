@@ -131,6 +131,9 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 		customAttrs: { // works with this.shouldMirrorProps // these are properties that should be made into attributes on the element - key is the string as found in this.props and value is the attr it should be applied as
 			pIcon: 'image'
 		},
+		click: function() {
+			window['react-mozNotificationBar@jetpack'].AB.contentMMForBrowser(gBrowser.selectedBrowser).sendAsyncMessage(window['react-mozNotificationBar@jetpack'].AB.id + '-AB', this.props.pId);
+		},
 		shouldMirrorProps: function(aNextProps, aIsMount) { // works with this.customAttrs
 			var node = ReactDOM.findDOMNode(this);
 			console.log('node:', node);
@@ -164,6 +167,9 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				accessKey: cAccesskey,
 				image: cImage
 			};
+			
+			cProps.onClick = this.click;
+			
 			var cChildren;			
 			if (this.props.pMenu && this.props.pMenu.length) {
 				cProps.type = 'menu';
@@ -217,6 +223,10 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				}
 			}
 		},
+		click: function(e) {
+			window['react-mozNotificationBar@jetpack'].AB.contentMMForBrowser(gBrowser.selectedBrowser).sendAsyncMessage(window['react-mozNotificationBar@jetpack'].AB.id + '-AB', this.props.cId);
+			e.stopPropagation(); // if i dont do this, then it also triggers the click of the button. as this whole menu is appended as child in the button
+		},
 		render: function() {
 			// incoming props
 			//	anything in a pMenu array. currently only cImage, cMenu, cIcon, cId, cClass do anything (cClass because you may want to menuitem-non-iconic) per https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/menuitem#Style_classes
@@ -225,6 +235,8 @@ window['react-mozNotificationBar@jetpack'].AB.masterComponents = {
 				label: this.props.cTxt,
 				className: this.props.cClass ? this.props.cClass : undefined
 			};
+			
+			cProps.onClick = this.click;
 
 			if (this.props.cMenu) {
 				// https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/menu#Style_classes
