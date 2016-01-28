@@ -42,8 +42,6 @@ const myPrefBranch = 'extensions.' + core.addon.id + '.';
 
 var BOOTSTRAP = this;
 
-const NS_XUL = 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
-
 var gNsiTimer = Cc['@mozilla.org/timer;1'].createInstance(Ci.nsITimer);
 
 // Lazy Imports
@@ -135,7 +133,7 @@ var AB = { // AB stands for attention bar
 		// :note: to remove a callback you have to set it to an empty function - ```getScope().AB.Insts[0].state.aClose = function() {}; getScope().AB.setState(getScope().AB.Insts[0].state);```
 		
 		// RETURNS
-			// id of inst pushed
+			// updated aInstState
 
 		
 		var cInstDefaults = {
@@ -228,7 +226,7 @@ var AB = { // AB stands for attention bar
 				aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId] = {};
 				aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInstState));
 				var cDeck = aDOMWindow.document.getElementById('content-deck');
-				var cNotificationBox = aDOMWindow.document.createElementNS(NS_XUL, 'notificationbox');
+				var cNotificationBox = aDOMWindow.document.createElementNS('http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul', 'notificationbox');
 				console.error('inserting', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
 				cNotificationBox.setAttribute('id', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
 				if (!aInstState.aPos) {
@@ -241,6 +239,9 @@ var AB = { // AB stands for attention bar
 			}
 			// end - orig block link181888888
 		};
+
+		// have to do this, because if i call setState with a new object, one that is not AB.Insts[aId] then it wont get updated, and when loadInstancesIntoWindow it will not have the updated one
+		AB.Insts[aInstState.aId].state = aInstState;
 		
 		var DOMWindows = Services.wm.getEnumerator(null);
 		while (DOMWindows.hasMoreElements()) {
@@ -254,6 +255,8 @@ var AB = { // AB stands for attention bar
 				}, false);
 			}
 		}
+		
+		return aInstState;
 	},
 	nonDevUserSpecifiedCloseCb: function(aInstId, aBrowser) {
 		// this does the unmounting from all windows, and deletes entry from this.Insts
@@ -390,7 +393,7 @@ var AB = { // AB stands for attention bar
 					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId] = {};
 					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInstState));
 					var cDeck = aDOMWindow.document.getElementById('content-deck');
-					var cNotificationBox = aDOMWindow.document.createElementNS(NS_XUL, 'notificationbox');
+					var cNotificationBox = aDOMWindow.document.createElementNS('http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul', 'notificationbox');
 					console.error('inserting', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
 					cNotificationBox.setAttribute('id', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
 					if (!aInstState.aPos) {
