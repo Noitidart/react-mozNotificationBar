@@ -143,7 +143,8 @@ var AB = { // AB stands for attention bar
 			aIcon: 'chrome://mozapps/skin/places/defaultFavicon.png', // icon on the toolbar
 			aPriority: 1, // valid values 1-10
 			aBtns: [], // must be array
-			aHideClose: undefined // if set to string 'true' or bool true, in dom it will get converted to string as 'true'. setting to 1 int will not work.
+			aHideClose: undefined, // if set to string 'true' or bool true, in dom it will get converted to string as 'true'. setting to 1 int will not work.
+			aClose: undefined
 		};
 		
 		/*
