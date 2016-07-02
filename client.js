@@ -1,9 +1,9 @@
-(function(aAddonId){	
-	window[aAddonId + '-AB'].contentMMForBrowser = function(aXULBrowser) {
-		// aXULBrowser is something like gBrowser.selectedBrowser
-		return aXULBrowser._docShell.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIContentFrameMessageManager)
-	};
-	
+(function(aAddonId){
+	// window[aAddonId + '-AB'].contentMMForBrowser = function(aXULBrowser) {
+	// 	// aXULBrowser is something like gBrowser.selectedBrowser
+	// 	return aXULBrowser._docShell.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIContentFrameMessageManager)
+	// };
+
 	window[aAddonId + '-AB'].masterComponents = {
 		Deck: 'notificationbox', // not a react component, just append this before inserting react component into it
 		Notification: React.createClass({
@@ -12,12 +12,18 @@
 				console.error('ok mounted'); // for some reason this doesnt trigger
 				window[aAddonId + '-AB'].Insts[this.props.aId].setState = this.setState.bind(this);
 				window[aAddonId + '-AB'].Node = node;
-				
+
 				var node = ReactDOM.findDOMNode(this);
 				node.close = this.close;
 			},
 			close: function() {
-				window[aAddonId + '-AB'].contentMMForBrowser(gBrowser.selectedBrowser).sendAsyncMessage(aAddonId + '-AB', this.props.aId);
+				var myEvent = document.createEvent('CustomEvent');
+				myEvent.initCustomEvent(aAddonId + '-AB', true, true, {
+					browser: gBrowser.selectedBrowser,
+					cbid: this.props.aId
+				});
+				window.dispatchEvent(myEvent);
+				// window[aAddonId + '-AB'].contentMMForBrowser(gBrowser.selectedBrowser). (aAddonId + '-AB', this.props.aId);
 			},
 			getInitialState: function() {
 				return {
@@ -33,7 +39,7 @@
 				}
 			},
 			render: function() {
-				
+
 				// incoming props
 				// do not use props, use state
 
@@ -43,7 +49,7 @@
 					pTxt: this.state.aTxt,
 					pIcon: this.state.aIcon,
 				};
-				
+
 				if (this.state.aPriority <= 3) {
 					cBarProps.pType = 'info';
 				} else if (this.state.aPriority <= 6) {
@@ -53,11 +59,11 @@
 				} else {
 					throw new Error('Invalid notification priority');
 				}
-				
+
 				cBarProps.pBtns = this.state.aBtns;
 				cBarProps.pId = this.state.aId;
 				cBarProps.pHideClose = this.state.aHideClose;
-				
+
 				return React.createElement(window[aAddonId + '-AB'].masterComponents.Bar, cBarProps);
 			}
 		}),
@@ -77,7 +83,7 @@
 			shouldMirrorProps: function(aNextProps, aIsMount) { // works with this.customAttrs
 				var node = ReactDOM.findDOMNode(this);
 				console.log('node:', node);
-				
+
 				for (var nProp in aNextProps) {
 					if (nProp in this.customAttrs) {
 						if (aIsMount || this.props[nProp] !== aNextProps[nProp]) { // // i do aIsMount check, because on mount, old prop is same as new prop, becase i call in componentDidMount shouldMirrorProps(this.props)
@@ -110,12 +116,13 @@
 							pKey: this.props.pBtns[i].bKey,
 							pTxt: this.props.pBtns[i].bTxt,
 							pMenu: this.props.pBtns[i].bMenu,
-							pIcon: this.props.pBtns[i].bIcon
+							pIcon: this.props.pBtns[i].bIcon,
+							pType: this.props.pBtns[i].bType
 						};
 						cChildren.push(React.createElement(window[aAddonId + '-AB'].masterComponents.Button, cButtonProps));
 					}
 				}
-				
+
 				return React.createElement('notification', {label:this.props.pTxt, priority:this.props.pPriority, type:this.props.pType, image:this.props.pIcon, value:'notificationbox-' + this.props.pId + '--' + window[aAddonId + '-AB'].domIdPrefix},
 					cChildren
 				);
@@ -125,6 +132,7 @@
 			displayName: 'Button',
 			componentDidMount: function() {
 				this.shouldMirrorProps(this.props, true);
+				ReactDOM.findDOMNode(this).addEventListener('command', this.click);
 			},
 			componentWillReceiveProps: function(aNextProps) {
 				this.shouldMirrorProps(aNextProps);
@@ -133,7 +141,13 @@
 				pIcon: 'image'
 			},
 			click: function() {
-				window[aAddonId + '-AB'].contentMMForBrowser(gBrowser.selectedBrowser).sendAsyncMessage(aAddonId + '-AB', this.props.pId);
+				var myEvent = document.createEvent('CustomEvent');
+				myEvent.initCustomEvent(aAddonId + '-AB', true, true, {
+					browser: gBrowser.selectedBrowser,
+					cbid: this.props.pId
+				});
+				window.dispatchEvent(myEvent);
+				// window[aAddonId + '-AB'].contentMMForBrowser(gBrowser.selectedBrowser).sendAsyncMessage(aAddonId + '-AB', this.props.pId);
 			},
 			shouldMirrorProps: function(aNextProps, aIsMount) { // works with this.customAttrs
 				var node = ReactDOM.findDOMNode(this);
@@ -161,19 +175,20 @@
 
 				var cAccesskey = this.props.pKey ? this.props.pKey : undefined;
 				var cImage = this.props.pIcon ? this.props.pIcon : undefined;
-				
+
 				var cProps = {
 					className: 'notification-button notification-button-default',
 					label: this.props.pTxt,
 					accessKey: cAccesskey,
-					image: cImage
+					image: cImage,
+					type: this.props.pType || undefined
 				};
-				
-				cProps.onClick = this.click;
-				
-				var cChildren;			
+
+				// cProps.onClick = this.click; // moved to componentDidMount and as onCommand
+
+				var cChildren;
 				if (this.props.pMenu && this.props.pMenu.length) {
-					cProps.type = 'menu';
+					cProps.type = !cProps.type ? 'menu' : cProps.type;
 					var cChildren = React.createElement(window[aAddonId + '-AB'].masterComponents.Menu, {pMenu:this.props.pMenu});
 				}
 				return React.createElement('button', cProps,
@@ -186,12 +201,12 @@
 			render: function() {
 				// incoming props
 				//	pMenu - a array of menu items
-				
+
 				var cChildren = [];
 				for (var i=0; i<this.props.pMenu.length; i++) {
 					cChildren.push(React.createElement(window[aAddonId + '-AB'].masterComponents.MenuItem, this.props.pMenu[i]));
 				}
-				
+
 				return React.createElement('menupopup', {},
 					cChildren
 				);
@@ -201,6 +216,11 @@
 			displayName: 'MenuItem',
 			componentDidMount: function() {
 				this.shouldMirrorProps(this.props, true);
+				if (!this.props.cMenu) {
+					console.log('ok its a menuitem so attach command listener');
+					ReactDOM.findDOMNode(this).addEventListener('command', this.click);
+				}
+				else { console.log('will not add event listener for command because its a menu NOT a menuitem') }
 			},
 			componentWillReceiveProps: function(aNextProps) {
 				this.shouldMirrorProps(aNextProps);
@@ -225,26 +245,30 @@
 				}
 			},
 			click: function(e) {
-				window[aAddonId + '-AB'].contentMMForBrowser(gBrowser.selectedBrowser).sendAsyncMessage(aAddonId + '-AB', this.props.cId);
 				e.stopPropagation(); // if i dont do this, then it also triggers the click of the button. as this whole menu is appended as child in the button
+				// window[aAddonId + '-AB'].contentMMForBrowser(gBrowser.selectedBrowser).sendAsyncMessage(aAddonId + '-AB', this.props.cId);
+				var myEvent = document.createEvent('CustomEvent');
+				myEvent.initCustomEvent(aAddonId + '-AB', true, true, {
+					browser: gBrowser.selectedBrowser,
+					cbid: this.props.cId
+				});
+				window.dispatchEvent(myEvent);
 			},
 			render: function() {
 				// incoming props
 				//	anything in a pMenu array. currently only cImage, cMenu, cIcon, cId, cClass do anything (cClass because you may want to menuitem-non-iconic) per https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/menuitem#Style_classes
-				
+
 				var cProps = {
 					label: this.props.cTxt,
 					className: this.props.cClass ? this.props.cClass : undefined
 				};
-				
-				cProps.onClick = this.click;
 
 				if (this.props.cMenu) {
 					// https://developer.mozilla.org/en-US/docs/Mozilla/Tech/XUL/menu#Style_classes
 					if (this.props.cIcon) {
 						cProps.className = (cProps.className ? cProps.className + ' ' : '') + 'menu-iconic';
 					}
-					
+
 					return React.createElement('menu', cProps,
 						React.createElement(window[aAddonId + '-AB'].masterComponents.Menu, {pMenu:this.props.cMenu})
 					);
@@ -253,10 +277,12 @@
 					if (this.props.cIcon) {
 						cProps.className = (cProps.className ? cProps.className + ' ' : '') + 'menuitem-iconic';
 					}
-					
+
+					// cProps.onClick = this.click; // moved to componentDidMount and as onCommand
+
 					return React.createElement('menuitem', cProps);
 				}
 			}
 		})
 	};
-})('react-mozNotificationBar@jetpack');
+})('Songifier@jetpack');
