@@ -120,7 +120,7 @@ var AB = { // AB stands for attention bar
 		*/
 
 		if (!('aId' in aInstState)) {
-			validateOptionsObj(aInstState, cInstDefaults);
+			Object.assign(cInstDefaults, aInstState);
 			aInstState.aId = AB.genId();
 			AB.Insts[aInstState.aId] = {
 				state: aInstState,
