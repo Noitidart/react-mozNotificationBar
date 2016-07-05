@@ -117,7 +117,8 @@
 							pTxt: this.props.pBtns[i].bTxt,
 							pMenu: this.props.pBtns[i].bMenu,
 							pIcon: this.props.pBtns[i].bIcon,
-							pType: this.props.pBtns[i].bType
+							pType: this.props.pBtns[i].bType,
+							pDisabled: this.props.pBtns[i].bDisabled
 						};
 						cChildren.push(React.createElement(window[aAddonId + '-AB'].masterComponents.Button, cButtonProps));
 					}
@@ -138,7 +139,8 @@
 				this.shouldMirrorProps(aNextProps);
 			},
 			customAttrs: { // works with this.shouldMirrorProps // these are properties that should be made into attributes on the element - key is the string as found in this.props and value is the attr it should be applied as
-				pIcon: 'image'
+				pIcon: 'image',
+				pDisabled: 'disabled' // because if i use react to set `disabled` it will just add the attribute with a blank value, but XUL requires a string value otherwise `disabled` with a blank value as if it wasnt there at all
 			},
 			click: function() {
 				var myEvent = document.createEvent('CustomEvent');
@@ -159,7 +161,9 @@
 							if (!aIsMount && (aNextProps[nProp] === null || aNextProps[nProp] === undefined)) {
 								node.removeAttribute(this.customAttrs[nProp]);
 							} else {
-								node.setAttribute(this.customAttrs[nProp], aNextProps[nProp]);
+								if (aNextProps[nProp] !== null && aNextProps[nProp] !== undefined) {
+									node.setAttribute(this.customAttrs[nProp], aNextProps[nProp]);
+								}
 							}
 						}
 					}
@@ -172,6 +176,7 @@
 				//	pIcon - optional
 				//	pMenu
 				//	pId
+				//  pDisabled - optional
 
 				var cAccesskey = this.props.pKey ? this.props.pKey : undefined;
 				var cImage = this.props.pIcon ? this.props.pIcon : undefined;
@@ -285,4 +290,4 @@
 			}
 		})
 	};
-})('Songifier@jetpack');
+})('NativeShot@jetpack');

@@ -106,6 +106,7 @@ var AB = { // AB stands for attention bar
 				bIcon: optional, string to image path
 				bTxt: required, text shown on button
 				bKey: 'B', // access key
+				bDisabled: false, // disabled status of button
 				bMenu: [
 					{
 						//mId: this is auto genned and added in here,
