@@ -285,7 +285,11 @@
 
 					// cProps.onClick = this.click; // moved to componentDidMount and as onCommand
 
-					return React.createElement('menuitem', cProps);
+					if (this.props.cSeperator) {
+						return React.createElement('menuseparator');
+					} else {
+						return React.createElement('menuitem', cProps);
+					}
 				}
 			}
 		})

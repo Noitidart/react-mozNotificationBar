@@ -109,8 +109,11 @@ var AB = { // AB stands for attention bar
 				bDisabled: false, // disabled status of button
 				bMenu: [
 					{
-						//mId: this is auto genned and added in here,
-						mTxt: 'string'
+						//cId: this is auto genned and added in here,
+						cTxt: 'string'
+					},
+					{
+						cSeperator: true // if this is seperator
 					}
 				]
 			},
